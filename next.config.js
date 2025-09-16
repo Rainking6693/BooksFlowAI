@@ -119,7 +119,7 @@ const nextConfig = {
           {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'production' 
-              ? process.env.NEXT_PUBLIC_APP_URL || 'https://soloaccountantai.com'
+              ? process.env.NEXT_PUBLIC_APP_URL || 'https://booksflowai.com'
               : 'http://localhost:3000'
           },
           {
