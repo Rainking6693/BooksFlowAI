@@ -1,1 +1,93 @@
-{\r\n  \"name\": \"solo-accountant-ai\",\r\n  \"version\": \"0.1.0\",\r\n  \"private\": true,\r\n  \"scripts\": {\r\n    \"dev\": \"next dev\",\r\n    \"build\": \"next build\",\r\n    \"start\": \"next start\",\r\n    \"lint\": \"next lint\",\r\n    \"lint:fix\": \"next lint --fix\",\r\n    \"type-check\": \"tsc --noEmit\",\r\n    \"test\": \"jest\",\r\n    \"test:watch\": \"jest --watch\",\r\n    \"test:ci\": \"jest --ci --coverage --watchAll=false\",\r\n    \"db:generate-types\": \"supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/database.types.ts\",\r\n    \"db:reset\": \"supabase db reset\",\r\n    \"db:migrate\": \"supabase migration up\"\r\n  },\r\n  \"dependencies\": {\r\n    \"next\": \"14.2.5\",\r\n    \"react\": \"^18.3.1\",\r\n    \"react-dom\": \"^18.3.1\",\r\n    \"@types/node\": \"^20.14.12\",\r\n    \"@types/react\": \"^18.3.3\",\r\n    \"@types/react-dom\": \"^18.3.0\",\r\n    \"typescript\": \"^5.5.4\",\r\n    \"zod\": \"^3.22.4\",\r\n    \"@supabase/supabase-js\": \"^2.45.4\",\r\n    \"clsx\": \"^2.1.1\",\r\n    \"tailwindcss-merge\": \"^2.5.2\"\r\n  },\r\n  \"devDependencies\": {\r\n    \"eslint\": \"^8.57.0\",\r\n    \"eslint-config-next\": \"14.2.5\",\r\n    \"postcss\": \"^8.4.40\",\r\n    \"tailwindcss\": \"^3.4.7\",\r\n    \"autoprefixer\": \"^10.4.19\",\r\n    \"@tailwindcss/forms\": \"^0.5.6\",\r\n    \"@tailwindcss/typography\": \"^0.5.10\",\r\n    \"@typescript-eslint/eslint-plugin\": \"^7.17.0\",\r\n    \"@typescript-eslint/parser\": \"^7.17.0\",\r\n    \"jest\": \"^29.7.0\",\r\n    \"jest-environment-jsdom\": \"^29.7.0\",\r\n    \"@testing-library/react\": \"^16.0.0\",\r\n    \"@testing-library/jest-dom\": \"^6.4.8\",\r\n    \"supabase\": \"^1.200.3\"\r\n  },\r\n  \"engines\": {\r\n    \"node\": \">=18.0.0\",\r\n    \"npm\": \">=9.0.0\"\r\n  }\r\n}
+{
+  "name": "solo-accountant-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage --watchAll=false",
+    "test:comprehensive": "npm run type-check && npm run lint && npm run test:ci",
+    "test:e2e": "playwright test",
+    "test:ai-integration": "jest --testPathPattern=ai",
+    "test:db": "jest --testPathPattern=database",
+    "db:generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID --schema public > lib/database.types.ts",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@types/node": "^20.14.12",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4",
+    "zod": "^3.22.4",
+    "@supabase/supabase-js": "^2.45.4",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.2",
+    "openai": "^4.56.0",
+    "mindee": "^4.15.0",
+    "intuit-oauth": "^4.1.0",
+    "stripe": "^16.8.0",
+    "react-dropzone": "^14.2.3",
+    "pdfkit": "^0.15.0",
+    "framer-motion": "^11.3.24",
+    "@headlessui/react": "^2.1.2",
+    "@heroicons/react": "^2.1.5",
+    "date-fns": "^3.6.0",
+    "react-hook-form": "^7.52.2",
+    "@hookform/resolvers": "^3.9.0",
+    "recharts": "^2.12.7",
+    "react-hot-toast": "^2.4.1",
+    "uuid": "^10.0.0",
+    "@types/uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "autoprefixer": "^10.4.19",
+    "@tailwindcss/forms": "^0.5.6",
+    "@tailwindcss/typography": "^0.5.10",
+    "@typescript-eslint/eslint-plugin": "^7.17.0",
+    "@typescript-eslint/parser": "^7.17.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.4.8",
+    "@testing-library/user-event": "^14.5.2",
+    "playwright": "^1.46.1",
+    "@playwright/test": "^1.46.1",
+    "supabase": "^1.200.3",
+    "@types/pdfkit": "^0.13.4",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-jsx-a11y": "^6.9.0",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.6"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
