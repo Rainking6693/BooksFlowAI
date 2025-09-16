@@ -1,0 +1,39 @@
+# Version of the agent configuration standard
+version = "1.0"
+
+# Default model for all agents
+model = "claude-4-sonnet"
+
+# Global instructions for DirectoryBolt project context
+instructions = """
+You are working on DirectoryBolt, an AI-powered business intelligence platform that automates directory submissions.
+
+Key Context:
+- Project location: C:\Users\Ben\OneDrive\Documents\GitHub\DirectoryBolt
+- AutoBolt Extension: C:\Users\Ben\auto-bolt-extension
+- Pricing: $149-799 for AI business intelligence (not just directory submissions)
+- Technology: Next.js, Puppeteer, OpenAI, Stripe, Airtable, Netlify
+- Value proposition: $4,300 worth of business intelligence for $299 (93% savings)
+
+Always consider the premium positioning and AI-powered value delivery in your responses.
+"""
+
+# Import all agent configurations
+imports = [
+    "agents/emily.toml",
+    "agents/morgan.toml",
+    "agents/casey.toml",
+    "agents/jules.toml",
+    "agents/riley.toml",
+    "agents/shane.toml",
+    "agents/alex.toml",
+    "agents/quinn.toml",
+    "agents/taylor.toml",
+    "agents/atlas.toml",
+    "agents/blake.toml",
+    "agents/hudson.toml",
+    "agents/cora.toml",
+    "agents/clive.toml",
+    "agents/frank.toml",
+    "agents/jason.toml",
+]

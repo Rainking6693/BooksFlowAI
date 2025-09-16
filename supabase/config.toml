@@ -1,0 +1,115 @@
+# =============================================================================
+# Supabase Local Development Configuration
+# Solo Accountant AI SaaS
+# =============================================================================
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost:54321"
+
+[inbucket]
+enabled = true
+port = 54324
+# The inbucket configuration for local email testing
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+port = 54325
+file_size_limit = "50MiB"
+# Receipt and document storage settings
+buckets = [
+  { name = "receipts", public = false },
+  { name = "documents", public = false },
+  { name = "avatars", public = true },
+  { name = "exports", public = false }
+]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+security_update_password_require_reauthentication = true
+security_manual_linking_enabled = false
+
+# OAuth providers configuration
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+[auth.external.github]
+enabled = true
+client_id = "env(GITHUB_CLIENT_ID)"
+secret = "env(GITHUB_CLIENT_SECRET)"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+# Email authentication settings
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+# Custom email templates for the accounting context
+template_invite = "./supabase/templates/invite.html"
+template_confirmation = "./supabase/templates/confirmation.html"
+template_recovery = "./supabase/templates/recovery.html"
+
+# SMTP configuration for production emails
+[auth.smtp]
+host = "env(EMAIL_SERVER_HOST)"
+port = 587
+user = "env(EMAIL_SERVER_USER)"
+pass = "env(EMAIL_SERVER_PASSWORD)"
+admin_email = "admin@booksflow.ai"
+sender_name = "BooksFlow AI"
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+
+[analytics]
+enabled = false
+
+[functions]
+verify_jwt = false
+
+# Custom hooks for business logic
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://public/custom_access_token"
+
+[auth.hook.send_sms]
+enabled = false
+
+# Rate limiting for API calls
+[api.rate_limit]
+# Requests per second per user
+per_second = 100
+# Burst capacity
+burst = 200
+
+# Database pool settings optimized for accounting workload
+[db.pooler]
+enabled = true
+port = 6543
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
