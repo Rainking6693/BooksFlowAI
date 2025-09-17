@@ -5,7 +5,7 @@
 
 import { logger, withTiming, performanceMonitor } from '../logger'
 import { ExternalServiceError, ValidationError } from '../errors'
-import { formatCurrency, formatDate, formatPercentage } from '../utils'
+import { formatCurrency, formatDate, formatPercent } from '../utils'
 
 // PDF generation configuration
 const PDF_CONFIG = {
@@ -268,9 +268,9 @@ function addBusinessMetrics(doc: any, data: PDFReportData, yPos: number): number
   yPos = addSectionTitle(doc, 'Business Metrics Overview', yPos)
   
   const metrics = [
-    { label: 'Profit Margin', value: formatPercentage(data.businessMetrics.profitMargin), color: getMetricColor(data.businessMetrics.profitMargin, 'percentage') },
-    { label: 'Expense Ratio', value: formatPercentage(data.businessMetrics.expenseRatio), color: getMetricColor(data.businessMetrics.expenseRatio, 'expense') },
-    { label: 'Growth Rate', value: formatPercentage(data.businessMetrics.growthRate), color: getMetricColor(data.businessMetrics.growthRate, 'growth') },
+    { label: 'Profit Margin', value: formatPercent(data.businessMetrics.profitMargin), color: getMetricColor(data.businessMetrics.profitMargin, 'percentage') },
+    { label: 'Expense Ratio', value: formatPercent(data.businessMetrics.expenseRatio), color: getMetricColor(data.businessMetrics.expenseRatio, 'expense') },
+    { label: 'Growth Rate', value: formatPercent(data.businessMetrics.growthRate), color: getMetricColor(data.businessMetrics.growthRate, 'growth') },
     { label: 'Efficiency Rating', value: data.businessMetrics.efficiency, color: getEfficiencyColor(data.businessMetrics.efficiency) }
   ]
   

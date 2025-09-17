@@ -9,7 +9,7 @@ import React, { useState, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { formatCurrency, formatDate, formatPercentage } from '@/lib/utils'
+import { formatCurrency, formatDate, formatPercent } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 
 interface BusinessMetrics {
@@ -307,21 +307,21 @@ export function ReportViewer({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="metric-card bg-gray-50 p-4 rounded-lg">
                 <div className="metric-value text-2xl font-bold text-gray-900">
-                  {formatPercentage(report.reportData.businessMetrics.profitMargin)}
+                  {formatPercent(report.reportData.businessMetrics.profitMargin)}
                 </div>
                 <div className="metric-label text-sm text-gray-600">Profit Margin</div>
               </div>
               
               <div className="metric-card bg-gray-50 p-4 rounded-lg">
                 <div className="metric-value text-2xl font-bold text-gray-900">
-                  {formatPercentage(report.reportData.businessMetrics.expenseRatio)}
+                  {formatPercent(report.reportData.businessMetrics.expenseRatio)}
                 </div>
                 <div className="metric-label text-sm text-gray-600">Expense Ratio</div>
               </div>
               
               <div className="metric-card bg-gray-50 p-4 rounded-lg">
                 <div className="metric-value text-2xl font-bold text-gray-900">
-                  {formatPercentage(report.reportData.businessMetrics.growthRate)}
+                  {formatPercent(report.reportData.businessMetrics.growthRate)}
                 </div>
                 <div className="metric-label text-sm text-gray-600">Growth Rate</div>
               </div>

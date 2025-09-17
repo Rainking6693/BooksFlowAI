@@ -6,9 +6,17 @@ import { logger } from '@/lib/logger'
 import { ValidationError, DatabaseError, AIServiceError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
+  let accountantId: string | undefined
+  let transactionIds: string[] | undefined
+  let batchMode = false
+  let ensuredAccountantId: string | undefined
+  let ensuredTransactionIds: string[] | undefined
+
   try {
     const body = await request.json()
-    const { transactionIds, accountantId, batchMode = false } = body
+    transactionIds = body.transactionIds
+    accountantId = body.accountantId
+    batchMode = body.batchMode ?? false
 
     // Validate required fields
     if (!transactionIds || !accountantId) {
@@ -23,16 +31,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    ensuredAccountantId = accountantId as string
+    ensuredTransactionIds = transactionIds as string[]
+
     // Get accountant's available categories
     const { data: categories, error: categoriesError } = await supabase
       .from('transaction_categories')
-      .select('name')
-      .eq('accountant_id', accountantId)
+      .select('id, name')
+      .eq('accountant_id', ensuredAccountantId)
       .eq('is_active', true)
 
     if (categoriesError) {
       const error = new DatabaseError('Failed to fetch transaction categories', {
-        accountantId,
+        accountantId: ensuredAccountantId,
         dbError: categoriesError.message
       })
       logger.error('Database error fetching categories', error)
@@ -48,13 +59,13 @@ export async function POST(request: NextRequest) {
     const { data: transactions, error: transactionsError } = await supabase
       .from('transactions')
       .select('*')
-      .in('id', transactionIds)
-      .eq('accountant_id', accountantId)
+      .in('id', ensuredTransactionIds)
+      .eq('accountant_id', ensuredAccountantId)
 
     if (transactionsError) {
       const error = new DatabaseError('Failed to fetch transactions', {
-        accountantId,
-        transactionIds,
+        accountantId: ensuredAccountantId ?? null,
+      transactionIds: ensuredTransactionIds ?? [],
         dbError: transactionsError.message
       })
       logger.error('Database error fetching transactions', error)
@@ -116,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       const error = new DatabaseError('Failed to update transactions with AI suggestions', {
-        accountantId,
+        accountantId: ensuredAccountantId,
         transactionCount: transactions.length,
         dbError: updateError.message
       })
@@ -131,7 +142,7 @@ export async function POST(request: NextRequest) {
     await Promise.all(
       transactions.map(transaction => 
         supabase.from('activity_logs').insert({
-          user_id: accountantId,
+          user_id: ensuredAccountantId,
           action: 'AI_CATEGORIZE',
           resource_type: 'transaction',
           resource_id: transaction.id,
@@ -168,8 +179,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     const aiError = new AIServiceError('Internal server error during AI categorization', {
-      accountantId,
-      transactionIds,
+      accountantId: ensuredAccountantId ?? null,
+      transactionIds: ensuredTransactionIds ?? [],
       batchMode,
       originalError: error instanceof Error ? error.message : 'Unknown error'
     })
@@ -182,9 +193,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let accountantId: string | null = null
+
   try {
     const { searchParams } = new URL(request.url)
-    const accountantId = searchParams.get('accountantId')
+    accountantId = searchParams.get('accountantId')
 
     if (!accountantId) {
       return NextResponse.json(
@@ -193,16 +206,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const ensuredAccountantId = accountantId as string
+
     // Get categorization statistics
     const { data: transactions, error } = await supabase
       .from('transactions')
       .select('ai_confidence, status, created_at')
-      .eq('accountant_id', accountantId)
+      .eq('accountant_id', ensuredAccountantId)
       .not('ai_confidence', 'is', null)
 
     if (error) {
       const dbError = new DatabaseError('Failed to fetch categorization statistics', {
-        accountantId,
+        accountantId: ensuredAccountantId,
         dbError: error.message
       })
       logger.error('Database error fetching categorization stats', dbError)
@@ -242,3 +257,12 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+
+
+
+
+
+
+
+

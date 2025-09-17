@@ -1,7 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const rawSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+const rawSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
+
+const supabaseUrl = rawSupabaseUrl || 'http://localhost:54321'
+const supabaseAnonKey = rawSupabaseAnonKey || 'public-anon-key'
+
+if (!rawSupabaseUrl || !rawSupabaseAnonKey) {
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('Supabase environment variables are not fully configured. Using placeholder credentials for build-time operations.')
+  }
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

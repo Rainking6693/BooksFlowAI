@@ -1,0 +1,52 @@
+*** Begin Patch
+*** Update File: src/app/api/ai/categorize/route.ts
+@@
+-    // Get accountant's available categories
+-    const { data: categories, error: categoriesError } = await supabase
+-      .from('transaction_categories')
+-      .select('id, name')
+-      .eq('accountant_id', accountantId)
++    const ensuredAccountantId = accountantId as string
++    const ensuredTransactionIds = transactionIds as string[]
++
++    // Get accountant's available categories
++    const { data: categories, error: categoriesError } = await supabase
++      .from('transaction_categories')
++      .select('id, name')
++      .eq('accountant_id', ensuredAccountantId)
+@@
+-    const { data: transactions, error: transactionsError } = await supabase
++    const { data: transactions, error: transactionsError } = await supabase
+       .from('transactions')
+       .select('*')
+-      .in('id', transactionIds)
+-      .eq('accountant_id', accountantId)
++      .in('id', ensuredTransactionIds)
++      .eq('accountant_id', ensuredAccountantId)
+@@
+-      const error = new DatabaseError('Failed to fetch transactions', {
+-        accountantId,
+-        transactionIds,
++      const error = new DatabaseError('Failed to fetch transactions', {
++        accountantId: ensuredAccountantId,
++        transactionIds: ensuredTransactionIds,
+@@
+-    const { error: updateError } = await supabase
++    const { error: updateError } = await supabase
+       .from('transactions')
+       .upsert(updates)
+@@
+-      const error = new DatabaseError('Failed to update transactions with AI suggestions', {
+-        accountantId,
+-        transactionCount: transactions.length,
++      const error = new DatabaseError('Failed to update transactions with AI suggestions', {
++        accountantId: ensuredAccountantId,
++        transactionCount: transactions.length,
+@@
+-      transactions.map(transaction => 
+-        supabase.from('activity_logs').insert({
+-          user_id: accountantId,
++      transactions.map(transaction => 
++        supabase.from('activity_logs').insert({
++          user_id: ensuredAccountantId,
+*** End Patch

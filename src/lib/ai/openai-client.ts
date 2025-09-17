@@ -71,7 +71,7 @@ export async function categorizeTransaction(
     const prompt = createCategorizationPrompt(request)
     
     const completion = await openai.chat.completions.create({
-      model: AI_CONFIG.model,
+      model: OPENAI_CONFIG.MODEL,
       messages: [
         {
           role: 'system',
@@ -82,8 +82,8 @@ export async function categorizeTransaction(
           content: prompt
         }
       ],
-      max_tokens: AI_CONFIG.maxTokens,
-      temperature: AI_CONFIG.temperature,
+      max_tokens: OPENAI_CONFIG.MAX_TOKENS,
+      temperature: OPENAI_CONFIG.TEMPERATURE,
       response_format: { type: 'json_object' }
     })
 
@@ -166,7 +166,7 @@ export async function generateClientReport(
     const prompt = createReportPrompt(request)
     
     const completion = await openai.chat.completions.create({
-      model: AI_CONFIG.model,
+      model: OPENAI_CONFIG.MODEL,
       messages: [
         {
           role: 'system',
@@ -177,7 +177,7 @@ export async function generateClientReport(
           content: prompt
         }
       ],
-      max_tokens: AI_CONFIG.maxTokens,
+      max_tokens: OPENAI_CONFIG.MAX_TOKENS,
       temperature: 0.3, // Slightly higher for creative report writing
       response_format: { type: 'json_object' }
     })

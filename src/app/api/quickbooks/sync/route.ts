@@ -10,9 +10,18 @@ import { logger } from '@/lib/logger'
 import { ValidationError, QuickBooksError, DatabaseError } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
+  let accountantId: string | undefined
+  let startDate: string | undefined
+  let endDate: string | undefined
+  let fullSync = false
+  let resolvedAccountantId: string | undefined
+
   try {
     const body = await request.json()
-    const { accountantId, startDate, endDate, fullSync = false } = body
+    accountantId = body.accountantId
+    startDate = body.startDate
+    endDate = body.endDate
+    fullSync = body.fullSync ?? false
 
     // Validate required fields
     if (!accountantId) {
@@ -22,11 +31,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    resolvedAccountantId = accountantId as string
+
     // Get accountant profile
     const { data: accountant, error: accountantError } = await supabase
       .from('accountants')
       .select('id, user_id, quickbooks_connected')
-      .eq('id', accountantId)
+      .eq('id', resolvedAccountantId)
       .single()
 
     if (accountantError || !accountant) {
@@ -46,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Check for existing QuickBooks connection
     let qbConnection
     try {
-      qbConnection = await getQBConnection(accountantId)
+      qbConnection = await getQBConnection(resolvedAccountantId)
     } catch (error) {
       return NextResponse.json(
         { error: 'QuickBooks connection not found or expired. Please reconnect.' },
@@ -85,7 +96,7 @@ export async function POST(request: NextRequest) {
         sync_status: 'syncing',
         last_sync_at: new Date().toISOString()
       })
-      .eq('accountant_id', accountantId)
+      .eq('accountant_id', resolvedAccountantId)
 
     try {
       // Sync company info first
@@ -111,7 +122,7 @@ export async function POST(request: NextRequest) {
           await supabase
             .from('transaction_categories')
             .upsert({
-              accountant_id: accountantId,
+              accountant_id: resolvedAccountantId,
               quickbooks_id: account.id,
               name: account.name,
               category_type: mapAccountTypeToCategory(account.accountType),
@@ -146,7 +157,7 @@ export async function POST(request: NextRequest) {
           sync_status: 'connected',
           last_sync_at: new Date().toISOString()
         })
-        .eq('accountant_id', accountantId)
+        .eq('accountant_id', resolvedAccountantId)
 
       // Log activity
       await supabase.from('activity_logs').insert({
@@ -194,7 +205,7 @@ export async function POST(request: NextRequest) {
           sync_status: 'error',
           last_sync_at: new Date().toISOString()
         })
-        .eq('accountant_id', accountantId)
+        .eq('accountant_id', resolvedAccountantId)
 
       return NextResponse.json(
         { 
@@ -219,9 +230,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  let accountantId: string | null = null
+
   try {
     const { searchParams } = new URL(request.url)
-    const accountantId = searchParams.get('accountantId')
+    accountantId = searchParams.get('accountantId')
 
     if (!accountantId) {
       return NextResponse.json(
@@ -230,11 +243,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const safeAccountantId = accountantId as string
+
     // Get sync status and history
     const { data: connection, error } = await supabase
       .from('quickbooks_connections')
       .select('*')
-      .eq('accountant_id', accountantId)
+      .eq('accountant_id', safeAccountantId)
       .single()
 
     if (error || !connection) {
@@ -257,7 +272,7 @@ export async function GET(request: NextRequest) {
     const { data: transactionCounts } = await supabase
       .from('transactions')
       .select('status, ai_confidence')
-      .eq('accountant_id', accountantId)
+      .eq('accountant_id', safeAccountantId)
 
     const stats = {
       totalTransactions: transactionCounts?.length || 0,
@@ -289,25 +304,4 @@ export async function GET(request: NextRequest) {
       { status: serviceError.statusCode }
     )
   }
-}
-
-/**
- * Map QuickBooks account types to our category types
- */
-function mapAccountTypeToCategory(accountType: string): string {
-  const mapping: Record<string, string> = {
-    'Income': 'Income',
-    'Expense': 'Expense',
-    'Bank': 'Asset',
-    'Accounts Receivable': 'Asset',
-    'Other Current Asset': 'Asset',
-    'Fixed Asset': 'Asset',
-    'Accounts Payable': 'Liability',
-    'Credit Card': 'Liability',
-    'Other Current Liability': 'Liability',
-    'Long Term Liability': 'Liability',
-    'Equity': 'Equity'
-  }
-
-  return mapping[accountType] || 'Expense'
 }
