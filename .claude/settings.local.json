@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(tree:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(netlify:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(nslookup:*)",
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "WebFetch(domain:app.netlify.com)",
+      "Bash(npm run dev:*)",
+      "Bash(npx netlify:*)"
     ],
     "deny": [],
     "ask": []
