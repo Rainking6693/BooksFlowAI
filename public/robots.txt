@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+
+# Allow all search engines to crawl the site
+Allow: /auth
+Allow: /dashboard
+Allow: /client-portal
+Allow: /features
+Allow: /integrations
+Allow: /pricing
+Allow: /about
+Allow: /contact
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /private/
+Disallow: /temp/
+
+# Sitemap location
+Sitemap: https://booksflowai.com/sitemap.xml
+
+# Crawl delay for respectful crawling
+Crawl-delay: 1
+
+# Allow image indexing
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /static/
+
+# Allow video indexing
+User-agent: Googlebot-Video
+Allow: /videos/
