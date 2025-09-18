@@ -16,7 +16,8 @@
       "Bash(PORT=3001 npm run start)",
       "Bash(PORT=4000 npm run start)",
       "Bash(dig:*)",
-      "WebFetch(domain:booksflowai.com)"
+      "WebFetch(domain:booksflowai.com)",
+      "Bash(PORT=5000 npm run start)"
     ],
     "deny": [],
     "ask": []
