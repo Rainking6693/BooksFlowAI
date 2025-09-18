@@ -12,7 +12,11 @@
       "Bash(ping:*)",
       "WebFetch(domain:app.netlify.com)",
       "Bash(npm run dev:*)",
-      "Bash(npx netlify:*)"
+      "Bash(npx netlify:*)",
+      "Bash(PORT=3001 npm run start)",
+      "Bash(PORT=4000 npm run start)",
+      "Bash(dig:*)",
+      "WebFetch(domain:booksflowai.com)"
     ],
     "deny": [],
     "ask": []

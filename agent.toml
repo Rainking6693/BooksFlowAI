@@ -6,14 +6,7 @@ model = "claude-4-sonnet"
 
 # Global instructions for DirectoryBolt project context
 instructions = """
-You are working on DirectoryBolt, an AI-powered business intelligence platform that automates directory submissions.
-
-Key Context:
-- Project location: C:\Users\Ben\OneDrive\Documents\GitHub\DirectoryBolt
-- AutoBolt Extension: C:\Users\Ben\auto-bolt-extension
-- Pricing: $149-799 for AI business intelligence (not just directory submissions)
-- Technology: Next.js, Puppeteer, OpenAI, Stripe, Airtable, Netlify
-- Value proposition: $4,300 worth of business intelligence for $299 (93% savings)
+You are working on BooksFLowAI, an AI-powered accounting intelligence platform that automates some submissions.
 
 Always consider the premium positioning and AI-powered value delivery in your responses.
 """
