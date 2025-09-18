@@ -7,11 +7,6 @@ const nextConfig = {
   // Enable SWC minification for better performance
   swcMinify: true,
   
-  // Optimize images
-  images: {
-    domains: ['localhost', 'booksflowai.com'],
-    formats: ['image/webp', 'image/avif'],
-  },
   
   // Essential security headers (simplified)
   async headers() {
@@ -62,8 +57,16 @@ const nextConfig = {
     ignoreDuringBuilds: true
   },
   
-  // Output configuration for Vercel
-  output: 'standalone',
+  // Enable serverless functions for API routes
+  // output: 'export', // Removed - incompatible with API routes
+  // trailingSlash: true, // Removed - not needed for serverless
+  
+  // Disable image optimization for static export
+  images: {
+    unoptimized: true,
+    domains: ['localhost', 'booksflowai.com'],
+    formats: ['image/webp', 'image/avif'],
+  },
   
   // Remove powered by header
   poweredByHeader: false,
