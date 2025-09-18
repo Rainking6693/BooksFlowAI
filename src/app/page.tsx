@@ -1,4 +1,5 @@
 import Script from 'next/script'
+import Link from 'next/link'
 
 export default function Home() {
   const structuredData = {
@@ -104,12 +105,12 @@ export default function Home() {
               and client reporting. <strong>Solo CPAs save 10+ hours weekly</strong> with 95% accurate transaction categorization.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-              <button className="bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-700 transition-colors shadow-lg">
+              <Link href="/auth" className="bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-700 transition-colors shadow-lg text-center">
                 Start Free 14-Day Trial
-              </button>
-              <button className="border-2 border-primary-600 text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-50 transition-colors">
+              </Link>
+              <Link href="/demo" className="border-2 border-primary-600 text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-50 transition-colors text-center">
                 Watch 3-Minute Demo
-              </button>
+              </Link>
             </div>
             <p className="text-sm text-gray-500">
               ✅ No credit card required • ✅ Setup in under 5 minutes • ✅ Cancel anytime
@@ -267,12 +268,12 @@ export default function Home() {
               Start your free trial today and see the difference AI can make.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-50 transition-colors shadow-lg">
+              <Link href="/auth" className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-50 transition-colors shadow-lg text-center">
                 Start Free 14-Day Trial
-              </button>
-              <button className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-700 transition-colors">
+              </Link>
+              <Link href="/contact" className="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-700 transition-colors text-center">
                 Schedule Demo Call
-              </button>
+              </Link>
             </div>
             <p className="text-sm text-primary-200 mt-4">
               ✅ No credit card required • ✅ Full feature access • ✅ Cancel anytime
