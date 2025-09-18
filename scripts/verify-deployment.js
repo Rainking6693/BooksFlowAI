@@ -181,6 +181,24 @@ async function main() {
   } else {
     console.log('❌ SOME CHECKS FAILED - Domain configuration needs attention.')
     console.log('📋 Review the failed checks above and fix the issues.')
+    
+    // Check for SSL certificate issues specifically
+    const sslIssues = results.some(r => !r.success && r.name.includes('HTTPS'))
+    if (sslIssues) {
+      console.log('\n🔒 SSL CERTIFICATE ISSUE DETECTED')
+      console.log('=================================')
+      console.log('The domain is resolving but serving the wrong SSL certificate.')
+      console.log('This indicates the custom domain is not properly configured in Netlify.')
+      console.log('')
+      console.log('🎯 IMMEDIATE ACTION REQUIRED:')
+      console.log('1. Access Netlify Dashboard with token: nfp_TqZCh5N6X1PvH5BBBAHbJUonTa1u3Czk8186')
+      console.log('2. Go to Site Settings → Domain management')
+      console.log('3. Add/verify booksflowai.com as custom domain')
+      console.log('4. Provision SSL certificate for custom domain')
+      console.log('')
+      console.log('📋 Detailed guide: See SSL_CERTIFICATE_FIX.md')
+      console.log('🔍 Run diagnostic: node scripts/diagnose-ssl.js')
+    }
   }
   
   process.exit(allPassed ? 0 : 1)
