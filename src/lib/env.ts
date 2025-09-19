@@ -4,7 +4,7 @@ import { z } from 'zod'
 const envSchema = z.object({
   // App configuration
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3003'),
   NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:8000'),
   
   // Supabase

@@ -19,6 +19,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth')
+      } else if (!user.email_confirmed_at) {
+        // Email not verified, redirect to thank you page
+        router.push('/auth/thank-you')
       } else {
         setUser(user)
       }
@@ -31,7 +34,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       if (event === 'SIGNED_OUT') {
         router.push('/auth')
       } else if (event === 'SIGNED_IN' && session) {
-        setUser(session.user)
+        // Only set user if email is verified
+        if (session.user.email_confirmed_at) {
+          setUser(session.user)
+        } else {
+          router.push('/auth/thank-you')
+        }
       }
     })
 

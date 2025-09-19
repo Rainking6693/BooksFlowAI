@@ -16,7 +16,13 @@ export default function AuthPage() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        router.push('/dashboard')
+        // Only redirect to dashboard if email is verified
+        if (user.email_confirmed_at) {
+          router.push('/dashboard')
+        } else {
+          // Email not verified, redirect to thank you page
+          router.push('/auth/thank-you')
+        }
       } else {
         setLoading(false)
       }
@@ -27,15 +33,27 @@ export default function AuthPage() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        router.push('/dashboard')
+        // Only redirect to dashboard if email is verified
+        if (session.user.email_confirmed_at) {
+          router.push('/dashboard')
+        } else {
+          // Email not verified, redirect to thank you page
+          router.push('/auth/thank-you')
+        }
       }
     })
 
     return () => subscription.unsubscribe()
   }, [router])
 
-  const handleAuthSuccess = () => {
-    router.push('/dashboard')
+  const handleAuthSuccess = async () => {
+    // Check if email is verified before redirecting
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user?.email_confirmed_at) {
+      router.push('/dashboard')
+    } else {
+      router.push('/auth/thank-you')
+    }
   }
 
   const toggleMode = () => {

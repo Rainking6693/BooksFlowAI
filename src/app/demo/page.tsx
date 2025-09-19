@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { DemoReceiptUpload } from '@/components/demo/DemoReceiptUpload'
 
 export default function DemoPage() {
   return (
@@ -115,19 +116,8 @@ export default function DemoPage() {
 
             {/* Receipt Processing Demo */}
             <div className="border border-gray-200 rounded-lg p-6">
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">OCR Receipt Processing</h4>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p className="text-gray-600 mb-2">Drop receipt image here</p>
-                <p className="text-sm text-gray-500">AI will extract vendor, amount, date, and tax info</p>
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 rounded">
-                <p className="text-sm text-blue-800">
-                  <strong>Demo Result:</strong> Vendor: "Restaurant ABC", Amount: $45.67, Date: 12/15/2024, Tax: $3.65
-                </p>
-              </div>
+              <h4 className="text-lg font-semibold text-gray-800 mb-4">AI-Powered OCR Receipt Processing</h4>
+              <DemoReceiptUpload />
             </div>
           </div>
         </div>

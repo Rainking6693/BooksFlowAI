@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase'
 
@@ -10,6 +11,7 @@ interface RegisterFormProps {
 }
 
 export function RegisterForm({ onSuccess, onToggleMode }: RegisterFormProps) {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -96,7 +98,8 @@ export function RegisterForm({ onSuccess, onToggleMode }: RegisterFormProps) {
           }
         }
 
-        onSuccess?.()
+        // Redirect to thank you page instead of dashboard
+        router.push('/auth/thank-you')
       }
     } catch (err) {
       setError('An unexpected error occurred')

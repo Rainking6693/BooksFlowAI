@@ -20,7 +20,8 @@
       "Bash(PORT=5000 npm run start)",
       "mcp__nuanced__enrich",
       "Bash(find:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
