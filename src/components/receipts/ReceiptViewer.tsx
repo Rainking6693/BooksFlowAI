@@ -1,1 +1,388 @@
-'use client'\n\nimport { useState } from 'react'\nimport { Button } from '@/components/ui/Button'\nimport { StatusBadge } from '@/components/ui/StatusBadge'\nimport { ConfidenceIndicator } from '@/components/ui/ConfidenceIndicator'\nimport { formatFileSize } from '@/lib/utils'\n\ninterface Receipt {\n  id: string\n  fileName: string\n  fileSize: number\n  mimeType: string\n  uploadedAt: string\n  processedAt?: string\n  status: 'uploaded' | 'processed' | 'matched' | 'error'\n  ocr?: {\n    vendor?: string\n    amount?: number\n    date?: string\n    confidence?: number\n  }\n  matching?: {\n    isMatched: boolean\n    confidence?: number\n    transaction?: {\n      id: string\n      description: string\n      amount: number\n      date: string\n    }\n  }\n}\n\ninterface ReceiptViewerProps {\n  receipt: Receipt\n  onMatch?: (receiptId: string, transactionId: string) => void\n  onUnmatch?: (receiptId: string) => void\n  onDelete?: (receiptId: string) => void\n  className?: string\n}\n\nexport function ReceiptViewer({\n  receipt,\n  onMatch,\n  onUnmatch,\n  onDelete,\n  className\n}: ReceiptViewerProps) {\n  const [isExpanded, setIsExpanded] = useState(false)\n  const [showImagePreview, setShowImagePreview] = useState(false)\n\n  const getFileIcon = (mimeType: string) => {\n    if (mimeType.startsWith('image/')) {\n      return (\n        <svg className=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n          <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\" />\n        </svg>\n      )\n    } else if (mimeType === 'application/pdf') {\n      return (\n        <svg className=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n          <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\" />\n        </svg>\n      )\n    }\n    return (\n      <svg className=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n        <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z\" />\n      </svg>\n    )\n  }\n\n  const getStatusColor = (status: string) => {\n    switch (status) {\n      case 'processed':\n        return 'approved'\n      case 'matched':\n        return 'synced'\n      case 'error':\n        return 'error'\n      default:\n        return 'pending'\n    }\n  }\n\n  const getConfidenceLevel = (confidence?: number): 'high' | 'medium' | 'low' => {\n    if (!confidence) return 'low'\n    if (confidence >= 0.8) return 'high'\n    if (confidence >= 0.6) return 'medium'\n    return 'low'\n  }\n\n  return (\n    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>\n      {/* Header */}\n      <div className=\"p-4 border-b border-gray-100\">\n        <div className=\"flex items-start justify-between\">\n          <div className=\"flex items-start space-x-3\">\n            <div className=\"flex-shrink-0 text-gray-400\">\n              {getFileIcon(receipt.mimeType)}\n            </div>\n            \n            <div className=\"flex-1 min-w-0\">\n              <div className=\"flex items-center space-x-2\">\n                <h3 className=\"text-sm font-medium text-gray-900 truncate\">\n                  {receipt.fileName}\n                </h3>\n                <StatusBadge \n                  status={getStatusColor(receipt.status) as any}\n                  size=\"sm\"\n                />\n              </div>\n              \n              <div className=\"mt-1 flex items-center space-x-4 text-xs text-gray-500\">\n                <span>{formatFileSize(receipt.fileSize)}</span>\n                <span>•</span>\n                <span>Uploaded {new Date(receipt.uploadedAt).toLocaleDateString()}</span>\n                {receipt.processedAt && (\n                  <>\n                    <span>•</span>\n                    <span>Processed {new Date(receipt.processedAt).toLocaleDateString()}</span>\n                  </>\n                )}\n              </div>\n            </div>\n          </div>\n          \n          <div className=\"flex items-center space-x-2\">\n            {receipt.mimeType.startsWith('image/') && (\n              <Button\n                onClick={() => setShowImagePreview(true)}\n                variant=\"ghost\"\n                size=\"xs\"\n                className=\"text-gray-400 hover:text-gray-600\"\n              >\n                <svg className=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n                  <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M15 12a3 3 0 11-6 0 3 3 0 016 0z\" />\n                  <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z\" />\n                </svg>\n              </Button>\n            )}\n            \n            <Button\n              onClick={() => setIsExpanded(!isExpanded)}\n              variant=\"ghost\"\n              size=\"xs\"\n              className=\"text-gray-400 hover:text-gray-600\"\n            >\n              <svg \n                className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} \n                fill=\"none\" \n                stroke=\"currentColor\" \n                viewBox=\"0 0 24 24\"\n              >\n                <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 9l-7 7-7-7\" />\n              </svg>\n            </Button>\n            \n            {onDelete && (\n              <Button\n                onClick={() => onDelete(receipt.id)}\n                variant=\"ghost\"\n                size=\"xs\"\n                className=\"text-gray-400 hover:text-red-600\"\n              >\n                <svg className=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n                  <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16\" />\n                </svg>\n              </Button>\n            )}\n          </div>\n        </div>\n      </div>\n\n      {/* Expanded Content */}\n      {isExpanded && (\n        <div className=\"p-4 space-y-4\">\n          {/* OCR Results */}\n          {receipt.ocr && (\n            <div className=\"bg-gray-50 rounded-lg p-4\">\n              <div className=\"flex items-center justify-between mb-3\">\n                <h4 className=\"text-sm font-medium text-gray-900\">OCR Results</h4>\n                {receipt.ocr.confidence && (\n                  <ConfidenceIndicator\n                    confidence={getConfidenceLevel(receipt.ocr.confidence)}\n                    score={receipt.ocr.confidence}\n                    showScore\n                    size=\"sm\"\n                  />\n                )}\n              </div>\n              \n              <div className=\"grid grid-cols-1 md:grid-cols-3 gap-4\">\n                {receipt.ocr.vendor && (\n                  <div>\n                    <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                      Vendor\n                    </label>\n                    <div className=\"text-sm text-gray-900\">{receipt.ocr.vendor}</div>\n                  </div>\n                )}\n                \n                {receipt.ocr.amount && (\n                  <div>\n                    <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                      Amount\n                    </label>\n                    <div className=\"text-sm text-gray-900 font-mono\">\n                      ${receipt.ocr.amount.toFixed(2)}\n                    </div>\n                  </div>\n                )}\n                \n                {receipt.ocr.date && (\n                  <div>\n                    <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                      Date\n                    </label>\n                    <div className=\"text-sm text-gray-900\">\n                      {new Date(receipt.ocr.date).toLocaleDateString()}\n                    </div>\n                  </div>\n                )}\n              </div>\n            </div>\n          )}\n\n          {/* Matching Status */}\n          {receipt.matching && (\n            <div className=\"bg-blue-50 rounded-lg p-4\">\n              <div className=\"flex items-center justify-between mb-3\">\n                <h4 className=\"text-sm font-medium text-gray-900\">Transaction Matching</h4>\n                {receipt.matching.confidence && (\n                  <div className=\"text-xs text-gray-500\">\n                    Match Confidence: {Math.round(receipt.matching.confidence * 100)}%\n                  </div>\n                )}\n              </div>\n              \n              {receipt.matching.isMatched && receipt.matching.transaction ? (\n                <div className=\"space-y-3\">\n                  <div className=\"flex items-center space-x-2\">\n                    <div className=\"w-2 h-2 bg-green-500 rounded-full\"></div>\n                    <span className=\"text-sm text-green-700 font-medium\">Matched to Transaction</span>\n                  </div>\n                  \n                  <div className=\"bg-white rounded border p-3\">\n                    <div className=\"grid grid-cols-1 md:grid-cols-3 gap-3\">\n                      <div>\n                        <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                          Description\n                        </label>\n                        <div className=\"text-sm text-gray-900\">\n                          {receipt.matching.transaction.description}\n                        </div>\n                      </div>\n                      \n                      <div>\n                        <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                          Amount\n                        </label>\n                        <div className=\"text-sm text-gray-900 font-mono\">\n                          ${Math.abs(receipt.matching.transaction.amount).toFixed(2)}\n                        </div>\n                      </div>\n                      \n                      <div>\n                        <label className=\"block text-xs font-medium text-gray-500 mb-1\">\n                          Date\n                        </label>\n                        <div className=\"text-sm text-gray-900\">\n                          {new Date(receipt.matching.transaction.date).toLocaleDateString()}\n                        </div>\n                      </div>\n                    </div>\n                    \n                    <div className=\"mt-3 flex items-center space-x-2\">\n                      {onUnmatch && (\n                        <Button\n                          onClick={() => onUnmatch(receipt.id)}\n                          variant=\"outline\"\n                          size=\"xs\"\n                        >\n                          Unmatch\n                        </Button>\n                      )}\n                      \n                      <Button\n                        onClick={() => window.open(`/transactions/${receipt.matching?.transaction?.id}`, '_blank')}\n                        variant=\"ghost\"\n                        size=\"xs\"\n                      >\n                        View Transaction\n                      </Button>\n                    </div>\n                  </div>\n                </div>\n              ) : (\n                <div className=\"space-y-3\">\n                  <div className=\"flex items-center space-x-2\">\n                    <div className=\"w-2 h-2 bg-yellow-500 rounded-full\"></div>\n                    <span className=\"text-sm text-yellow-700 font-medium\">No Match Found</span>\n                  </div>\n                  \n                  <p className=\"text-sm text-gray-600\">\n                    This receipt hasn't been matched to any transaction yet.\n                  </p>\n                  \n                  {onMatch && (\n                    <Button\n                      onClick={() => {\n                        // This would open a transaction selection modal\n                        // For now, we'll just log the action\n                        console.log('Find matching transaction for receipt:', receipt.id)\n                      }}\n                      variant=\"outline\"\n                      size=\"sm\"\n                    >\n                      Find Matching Transaction\n                    </Button>\n                  )}\n                </div>\n              )}\n            </div>\n          )}\n\n          {/* Error State */}\n          {receipt.status === 'error' && (\n            <div className=\"bg-red-50 rounded-lg p-4\">\n              <div className=\"flex items-center space-x-2 mb-2\">\n                <div className=\"w-2 h-2 bg-red-500 rounded-full\"></div>\n                <span className=\"text-sm text-red-700 font-medium\">Processing Error</span>\n              </div>\n              \n              <p className=\"text-sm text-red-600\">\n                There was an error processing this receipt. Please try uploading again or contact support.\n              </p>\n              \n              <div className=\"mt-3\">\n                <Button\n                  onClick={() => {\n                    // This would trigger a retry\n                    console.log('Retry processing receipt:', receipt.id)\n                  }}\n                  variant=\"outline\"\n                  size=\"sm\"\n                >\n                  Retry Processing\n                </Button>\n              </div>\n            </div>\n          )}\n        </div>\n      )}\n\n      {/* Image Preview Modal */}\n      {showImagePreview && receipt.mimeType.startsWith('image/') && (\n        <div className=\"fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50\">\n          <div className=\"max-w-4xl max-h-full p-4\">\n            <div className=\"bg-white rounded-lg overflow-hidden\">\n              <div className=\"flex items-center justify-between p-4 border-b\">\n                <h3 className=\"text-lg font-medium text-gray-900\">{receipt.fileName}</h3>\n                <Button\n                  onClick={() => setShowImagePreview(false)}\n                  variant=\"ghost\"\n                  size=\"sm\"\n                >\n                  <svg className=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n                    <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M6 18L18 6M6 6l12 12\" />\n                  </svg>\n                </Button>\n              </div>\n              \n              <div className=\"p-4\">\n                <img\n                  src={`/api/receipts/${receipt.id}/preview`}\n                  alt={receipt.fileName}\n                  className=\"max-w-full max-h-96 mx-auto\"\n                  onError={(e) => {\n                    // Handle image load error\n                    e.currentTarget.src = '/placeholder-receipt.png'\n                  }}\n                />\n              </div>\n            </div>\n          </div>\n        </div>\n      )}\n    </div>\n  )\n}\n"
+'use client'
+
+import { useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { ConfidenceIndicator } from '@/components/ui/ConfidenceIndicator'
+import { formatFileSize } from '@/lib/utils'
+
+interface Receipt {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  uploadedAt: string
+  processedAt?: string
+  status: 'uploaded' | 'processed' | 'matched' | 'error'
+  ocr?: {
+    vendor?: string
+    amount?: number
+    date?: string
+    confidence?: number
+  }
+  matching?: {
+    isMatched: boolean
+    confidence?: number
+    transaction?: {
+      id: string
+      description: string
+      amount: number
+      date: string
+    }
+  }
+}
+
+interface ReceiptViewerProps {
+  receipt: Receipt
+  onMatch?: (receiptId: string, transactionId: string) => void
+  onUnmatch?: (receiptId: string) => void
+  onDelete?: (receiptId: string) => void
+  className?: string
+}
+
+export function ReceiptViewer({
+  receipt,
+  onMatch,
+  onUnmatch,
+  onDelete,
+  className
+}: ReceiptViewerProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [showImagePreview, setShowImagePreview] = useState(false)
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) {
+      return (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    } else if (mimeType === 'application/pdf') {
+      return (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    }
+    return (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    )
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'processed':
+        return 'approved'
+      case 'matched':
+        return 'synced'
+      case 'error':
+        return 'error'
+      default:
+        return 'pending'
+    }
+  }
+
+  const getConfidenceLevel = (confidence?: number): 'high' | 'medium' | 'low' => {
+    if (!confidence) return 'low'
+    if (confidence >= 0.8) return 'high'
+    if (confidence >= 0.6) return 'medium'
+    return 'low'
+  }
+
+  return (
+    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm ${className}`}>
+      {/* Header */}
+      <div className="p-4 border-b border-gray-100">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 text-gray-400">
+              {getFileIcon(receipt.mimeType)}
+            </div>
+            
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-900 truncate">
+                  {receipt.fileName}
+                </h3>
+                <StatusBadge 
+                  status={getStatusColor(receipt.status) as any}
+                  size="sm"
+                />
+              </div>
+              
+              <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
+                <span>{formatFileSize(receipt.fileSize)}</span>
+                <span>•</span>
+                <span>Uploaded {new Date(receipt.uploadedAt).toLocaleDateString()}</span>
+                {receipt.processedAt && (
+                  <>
+                    <span>•</span>
+                    <span>Processed {new Date(receipt.processedAt).toLocaleDateString()}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {receipt.mimeType.startsWith('image/') && (
+              <Button
+                onClick={() => setShowImagePreview(true)}
+                variant="ghost"
+                size="xs"
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </Button>
+            )}
+            
+            <Button
+              onClick={() => setIsExpanded(!isExpanded)}
+              variant="ghost"
+              size="xs"
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg 
+                className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </Button>
+            
+            {onDelete && (
+              <Button
+                onClick={() => onDelete(receipt.id)}
+                variant="ghost"
+                size="xs"
+                className="text-gray-400 hover:text-red-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className="p-4 space-y-4">
+          {/* OCR Results */}
+          {receipt.ocr && (
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-900">OCR Results</h4>
+                {receipt.ocr.confidence && (
+                  <ConfidenceIndicator
+                    confidence={getConfidenceLevel(receipt.ocr.confidence)}
+                    score={receipt.ocr.confidence}
+                    showScore
+                    size="sm"
+                  />
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {receipt.ocr.vendor && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Vendor
+                    </label>
+                    <div className="text-sm text-gray-900">{receipt.ocr.vendor}</div>
+                  </div>
+                )}
+                
+                {receipt.ocr.amount && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Amount
+                    </label>
+                    <div className="text-sm text-gray-900 font-mono">
+                      ${receipt.ocr.amount.toFixed(2)}
+                    </div>
+                  </div>
+                )}
+                
+                {receipt.ocr.date && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Date
+                    </label>
+                    <div className="text-sm text-gray-900">
+                      {new Date(receipt.ocr.date).toLocaleDateString()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Matching Status */}
+          {receipt.matching && (
+            <div className="bg-blue-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-gray-900">Transaction Matching</h4>
+                {receipt.matching.confidence && (
+                  <div className="text-xs text-gray-500">
+                    Match Confidence: {Math.round(receipt.matching.confidence * 100)}%
+                  </div>
+                )}
+              </div>
+              
+              {receipt.matching.isMatched && receipt.matching.transaction ? (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-sm text-green-700 font-medium">Matched to Transaction</span>
+                  </div>
+                  
+                  <div className="bg-white rounded border p-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Description
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {receipt.matching.transaction.description}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Amount
+                        </label>
+                        <div className="text-sm text-gray-900 font-mono">
+                          ${Math.abs(receipt.matching.transaction.amount).toFixed(2)}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">
+                          Date
+                        </label>
+                        <div className="text-sm text-gray-900">
+                          {new Date(receipt.matching.transaction.date).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 flex items-center space-x-2">
+                      {onUnmatch && (
+                        <Button
+                          onClick={() => onUnmatch(receipt.id)}
+                          variant="outline"
+                          size="xs"
+                        >
+                          Unmatch
+                        </Button>
+                      )}
+                      
+                      <Button
+                        onClick={() => window.open(`/transactions/${receipt.matching?.transaction?.id}`, '_blank')}
+                        variant="ghost"
+                        size="xs"
+                      >
+                        View Transaction
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-sm text-yellow-700 font-medium">No Match Found</span>
+                  </div>
+                  
+                  <p className="text-sm text-gray-600">
+                    This receipt hasn't been matched to any transaction yet.
+                  </p>
+                  
+                  {onMatch && (
+                    <Button
+                      onClick={() => {
+                        console.log('Find matching transaction for receipt:', receipt.id)
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Find Matching Transaction
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Error State */}
+          {receipt.status === 'error' && (
+            <div className="bg-red-50 rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span className="text-sm text-red-700 font-medium">Processing Error</span>
+              </div>
+              
+              <p className="text-sm text-red-600">
+                There was an error processing this receipt. Please try uploading again or contact support.
+              </p>
+              
+              <div className="mt-3">
+                <Button
+                  onClick={() => {
+                    console.log('Retry processing receipt:', receipt.id)
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  Retry Processing
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {showImagePreview && receipt.mimeType.startsWith('image/') && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="max-w-4xl max-h-full p-4">
+            <div className="bg-white rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-medium text-gray-900">{receipt.fileName}</h3>
+                <Button
+                  onClick={() => setShowImagePreview(false)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </Button>
+              </div>
+              
+              <div className="p-4">
+                <img
+                  src={`/api/receipts/${receipt.id}/preview`}
+                  alt={receipt.fileName}
+                  className="max-w-full max-h-96 mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.src = '/placeholder-receipt.png'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,1 +1,526 @@
-import { NextRequest, NextResponse } from 'next/server'\nimport { supabase } from '@/lib/supabase'\nimport { sendMissingReceiptReminder, sendReportReadyNotification } from '@/lib/integrations/email-service'\nimport { logger } from '@/lib/logger'\nimport { DatabaseError } from '@/lib/errors'\n\n// This endpoint handles automated notification scheduling\n// In production, this would be called by a cron job or scheduled task\n\nexport async function POST(request: NextRequest) {\n  try {\n    const body = await request.json()\n    const { action, accountantId } = body\n\n    if (!action) {\n      return NextResponse.json(\n        { error: 'Action is required' },\n        { status: 400 }\n      )\n    }\n\n    let results: any = {}\n\n    switch (action) {\n      case 'send_missing_receipt_reminders':\n        results = await processMissingReceiptReminders(accountantId)\n        break\n      \n      case 'send_report_notifications':\n        results = await processReportNotifications(accountantId)\n        break\n      \n      case 'send_weekly_summary':\n        results = await processWeeklySummary(accountantId)\n        break\n      \n      case 'cleanup_old_notifications':\n        results = await cleanupOldNotifications()\n        break\n      \n      default:\n        return NextResponse.json(\n          { error: 'Unknown action' },\n          { status: 400 }\n        )\n    }\n\n    return NextResponse.json({\n      success: true,\n      action,\n      results\n    })\n\n  } catch (error) {\n    logger.error('Notification scheduler error', error as Error)\n    return NextResponse.json(\n      { error: 'Internal server error in notification scheduler' },\n      { status: 500 }\n    )\n  }\n}\n\n/**\n * Process missing receipt reminders\n */\nasync function processMissingReceiptReminders(accountantId?: string): Promise<{\n  processed: number\n  sent: number\n  failed: number\n  details: Array<{ clientId: string; status: 'sent' | 'failed'; error?: string }>\n}> {\n  try {\n    logger.info('Processing missing receipt reminders', { accountantId })\n\n    // Get clients with missing receipts\n    let query = supabase\n      .from('clients')\n      .select(`\n        id,\n        name,\n        email,\n        accountant:accountants!inner(\n          id,\n          name,\n          email\n        )\n      `)\n\n    if (accountantId) {\n      query = query.eq('accountant_id', accountantId)\n    }\n\n    const { data: clients, error: clientsError } = await query\n\n    if (clientsError) {\n      throw new DatabaseError('Failed to fetch clients', { dbError: clientsError.message })\n    }\n\n    if (!clients || clients.length === 0) {\n      return { processed: 0, sent: 0, failed: 0, details: [] }\n    }\n\n    const results = {\n      processed: 0,\n      sent: 0,\n      failed: 0,\n      details: [] as Array<{ clientId: string; status: 'sent' | 'failed'; error?: string }>\n    }\n\n    for (const client of clients) {\n      try {\n        results.processed++\n\n        // Get missing receipts for this client\n        const missingReceipts = await getMissingReceiptsForClient(client.id, client.accountant.id)\n\n        if (missingReceipts.length === 0) {\n          continue // No missing receipts, skip\n        }\n\n        // Check if we've sent a reminder recently (within last 3 days)\n        const { data: recentReminder, error: reminderError } = await supabase\n          .from('email_logs')\n          .select('id')\n          .eq('recipient_email', client.email)\n          .eq('email_type', 'missing_receipt_reminder')\n          .gte('sent_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())\n          .limit(1)\n\n        if (reminderError) {\n          logger.error('Error checking recent reminders', reminderError)\n        }\n\n        if (recentReminder && recentReminder.length > 0) {\n          continue // Already sent reminder recently, skip\n        }\n\n        // Calculate total amount\n        const totalAmount = missingReceipts.reduce((sum, receipt) => sum + receipt.amount, 0)\n\n        // Send reminder email\n        const emailResult = await sendMissingReceiptReminder({\n          clientName: client.name,\n          clientEmail: client.email,\n          accountantName: client.accountant.name,\n          missingReceipts,\n          totalAmount,\n          portalUrl: `${process.env.NEXT_PUBLIC_APP_URL}/client-portal`\n        })\n\n        if (emailResult.success) {\n          results.sent++\n          results.details.push({ clientId: client.id, status: 'sent' })\n\n          // Log the email\n          await supabase.from('email_logs').insert({\n            recipient_email: client.email,\n            recipient_name: client.name,\n            email_type: 'missing_receipt_reminder',\n            subject: `Missing Receipts Reminder - ${missingReceipts.length} receipts needed`,\n            sent_at: new Date().toISOString(),\n            message_id: emailResult.messageId,\n            status: 'sent',\n            metadata: {\n              missingReceiptsCount: missingReceipts.length,\n              totalAmount,\n              accountantId: client.accountant.id\n            }\n          })\n\n          // Create notification record\n          await supabase.from('notifications').insert({\n            user_id: client.id,\n            type: 'missing_receipt_reminder',\n            title: 'Missing Receipts Reminder Sent',\n            message: `Reminder sent for ${missingReceipts.length} missing receipts`,\n            read: false,\n            created_at: new Date().toISOString(),\n            metadata: {\n              missingReceiptsCount: missingReceipts.length,\n              totalAmount\n            }\n          })\n\n        } else {\n          results.failed++\n          results.details.push({ \n            clientId: client.id, \n            status: 'failed', \n            error: emailResult.error \n          })\n\n          // Log the failure\n          await supabase.from('email_logs').insert({\n            recipient_email: client.email,\n            recipient_name: client.name,\n            email_type: 'missing_receipt_reminder',\n            subject: `Missing Receipts Reminder - ${missingReceipts.length} receipts needed`,\n            sent_at: new Date().toISOString(),\n            status: 'failed',\n            error_message: emailResult.error,\n            metadata: {\n              missingReceiptsCount: missingReceipts.length,\n              totalAmount,\n              accountantId: client.accountant.id\n            }\n          })\n        }\n\n      } catch (error) {\n        results.failed++\n        results.details.push({ \n          clientId: client.id, \n          status: 'failed', \n          error: error instanceof Error ? error.message : 'Unknown error'\n        })\n        \n        logger.error('Error processing reminder for client', error as Error, {\n          clientId: client.id,\n          clientEmail: client.email\n        })\n      }\n    }\n\n    logger.info('Missing receipt reminders processing complete', results)\n    return results\n\n  } catch (error) {\n    logger.error('Error processing missing receipt reminders', error as Error)\n    throw error\n  }\n}\n\n/**\n * Get missing receipts for a specific client\n */\nasync function getMissingReceiptsForClient(\n  clientId: string, \n  accountantId: string\n): Promise<Array<{\n  id: string\n  description: string\n  amount: number\n  date: string\n  daysOverdue: number\n}>> {\n  // Get transactions without receipts for this client's accountant\n  const { data: transactions, error } = await supabase\n    .from('transactions')\n    .select('id, description, amount, transaction_date')\n    .eq('accountant_id', accountantId)\n    .is('receipt_id', null)\n    .gte('transaction_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) // Last 90 days\n    .lt('transaction_date', new Date().toISOString().split('T')[0]) // Before today\n    .order('transaction_date', { ascending: false })\n    .limit(50)\n\n  if (error) {\n    logger.error('Error fetching missing receipts', error)\n    return []\n  }\n\n  if (!transactions || transactions.length === 0) {\n    return []\n  }\n\n  return transactions.map(transaction => {\n    const daysOverdue = Math.floor(\n      (Date.now() - new Date(transaction.transaction_date).getTime()) / (1000 * 60 * 60 * 24)\n    )\n\n    return {\n      id: transaction.id,\n      description: transaction.description,\n      amount: Math.abs(transaction.amount),\n      date: transaction.transaction_date,\n      daysOverdue\n    }\n  })\n}\n\n/**\n * Process report ready notifications\n */\nasync function processReportNotifications(accountantId?: string): Promise<{\n  processed: number\n  sent: number\n  failed: number\n}> {\n  try {\n    logger.info('Processing report notifications', { accountantId })\n\n    // Get reports that are ready but haven't been notified\n    let query = supabase\n      .from('reports')\n      .select(`\n        id,\n        title,\n        period_start,\n        period_end,\n        file_url,\n        client:clients!inner(\n          id,\n          name,\n          email,\n          accountant:accountants!inner(\n            id,\n            name\n          )\n        )\n      `)\n      .eq('status', 'completed')\n      .eq('notification_sent', false)\n      .not('file_url', 'is', null)\n\n    if (accountantId) {\n      query = query.eq('client.accountant_id', accountantId)\n    }\n\n    const { data: reports, error: reportsError } = await query\n\n    if (reportsError) {\n      throw new DatabaseError('Failed to fetch reports', { dbError: reportsError.message })\n    }\n\n    if (!reports || reports.length === 0) {\n      return { processed: 0, sent: 0, failed: 0 }\n    }\n\n    const results = { processed: 0, sent: 0, failed: 0 }\n\n    for (const report of reports) {\n      try {\n        results.processed++\n\n        const emailResult = await sendReportReadyNotification({\n          clientName: report.client.name,\n          clientEmail: report.client.email,\n          reportTitle: report.title,\n          reportPeriod: `${new Date(report.period_start).toLocaleDateString()} - ${new Date(report.period_end).toLocaleDateString()}`,\n          downloadUrl: report.file_url,\n          accountantName: report.client.accountant.name\n        })\n\n        if (emailResult.success) {\n          results.sent++\n\n          // Mark report as notified\n          await supabase\n            .from('reports')\n            .update({ \n              notification_sent: true, \n              notification_sent_at: new Date().toISOString() \n            })\n            .eq('id', report.id)\n\n          // Log the email\n          await supabase.from('email_logs').insert({\n            recipient_email: report.client.email,\n            recipient_name: report.client.name,\n            email_type: 'report_ready',\n            subject: `Your ${report.title} is Ready`,\n            sent_at: new Date().toISOString(),\n            message_id: emailResult.messageId,\n            status: 'sent',\n            metadata: {\n              reportId: report.id,\n              reportTitle: report.title\n            }\n          })\n\n        } else {\n          results.failed++\n          logger.error('Failed to send report notification', new Error(emailResult.error), {\n            reportId: report.id,\n            clientEmail: report.client.email\n          })\n        }\n\n      } catch (error) {\n        results.failed++\n        logger.error('Error processing report notification', error as Error, {\n          reportId: report.id\n        })\n      }\n    }\n\n    logger.info('Report notifications processing complete', results)\n    return results\n\n  } catch (error) {\n    logger.error('Error processing report notifications', error as Error)\n    throw error\n  }\n}\n\n/**\n * Process weekly summary emails\n */\nasync function processWeeklySummary(accountantId?: string): Promise<{\n  processed: number\n  sent: number\n  failed: number\n}> {\n  // TODO: Implement weekly summary email processing\n  logger.info('Weekly summary processing not yet implemented', { accountantId })\n  return { processed: 0, sent: 0, failed: 0 }\n}\n\n/**\n * Clean up old notification records\n */\nasync function cleanupOldNotifications(): Promise<{\n  deletedNotifications: number\n  deletedEmailLogs: number\n}> {\n  try {\n    logger.info('Cleaning up old notifications')\n\n    const cutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() // 90 days ago\n\n    // Delete old read notifications\n    const { error: notificationError, count: deletedNotifications } = await supabase\n      .from('notifications')\n      .delete()\n      .eq('read', true)\n      .lt('created_at', cutoffDate)\n\n    if (notificationError) {\n      logger.error('Error deleting old notifications', notificationError)\n    }\n\n    // Delete old email logs (keep for audit purposes, but clean up very old ones)\n    const oldCutoffDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago\n    \n    const { error: emailLogError, count: deletedEmailLogs } = await supabase\n      .from('email_logs')\n      .delete()\n      .lt('sent_at', oldCutoffDate)\n\n    if (emailLogError) {\n      logger.error('Error deleting old email logs', emailLogError)\n    }\n\n    const results = {\n      deletedNotifications: deletedNotifications || 0,\n      deletedEmailLogs: deletedEmailLogs || 0\n    }\n\n    logger.info('Cleanup complete', results)\n    return results\n\n  } catch (error) {\n    logger.error('Error during cleanup', error as Error)\n    throw error\n  }\n}\n\n// GET endpoint for notification statistics\nexport async function GET(request: NextRequest) {\n  try {\n    const { searchParams } = new URL(request.url)\n    const accountantId = searchParams.get('accountantId')\n    const days = parseInt(searchParams.get('days') || '7')\n\n    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()\n\n    // Get email statistics\n    let emailQuery = supabase\n      .from('email_logs')\n      .select('email_type, status, sent_at')\n      .gte('sent_at', cutoffDate)\n\n    if (accountantId) {\n      emailQuery = emailQuery.eq('metadata->>accountantId', accountantId)\n    }\n\n    const { data: emailLogs, error: emailError } = await emailQuery\n\n    if (emailError) {\n      throw new DatabaseError('Failed to fetch email statistics', { dbError: emailError.message })\n    }\n\n    // Calculate statistics\n    const stats = {\n      totalEmails: emailLogs?.length || 0,\n      sentEmails: emailLogs?.filter(log => log.status === 'sent').length || 0,\n      failedEmails: emailLogs?.filter(log => log.status === 'failed').length || 0,\n      emailTypes: {} as Record<string, number>,\n      dailyStats: {} as Record<string, { sent: number; failed: number }>\n    }\n\n    // Group by email type\n    emailLogs?.forEach(log => {\n      stats.emailTypes[log.email_type] = (stats.emailTypes[log.email_type] || 0) + 1\n      \n      const day = new Date(log.sent_at).toISOString().split('T')[0]\n      if (!stats.dailyStats[day]) {\n        stats.dailyStats[day] = { sent: 0, failed: 0 }\n      }\n      \n      if (log.status === 'sent') {\n        stats.dailyStats[day].sent++\n      } else {\n        stats.dailyStats[day].failed++\n      }\n    })\n\n    stats.successRate = stats.totalEmails > 0 \n      ? Math.round((stats.sentEmails / stats.totalEmails) * 100) \n      : 0\n\n    return NextResponse.json({\n      success: true,\n      period: `${days} days`,\n      statistics: stats\n    })\n\n  } catch (error) {\n    logger.error('Error fetching notification statistics', error as Error)\n    return NextResponse.json(\n      { error: 'Internal server error fetching statistics' },\n      { status: 500 }\n    )\n  }\n}\n"
+import { NextRequest, NextResponse } from 'next/server'
+import { supabase } from '@/lib/supabase'
+import { sendMissingReceiptReminder, sendReportReadyNotification } from '@/lib/integrations/email-service'
+import { logger } from '@/lib/logger'
+import { DatabaseError } from '@/lib/errors'
+
+// This endpoint handles automated notification scheduling
+// In production, this would be called by a cron job or scheduled task
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { action, accountantId } = body
+
+    if (!action) {
+      return NextResponse.json(
+        { error: 'Action is required' },
+        { status: 400 }
+      )
+    }
+
+    let results: any = {}
+
+    switch (action) {
+      case 'send_missing_receipt_reminders':
+        results = await processMissingReceiptReminders(accountantId)
+        break
+      
+      case 'send_report_notifications':
+        results = await processReportNotifications(accountantId)
+        break
+      
+      case 'send_weekly_summary':
+        results = await processWeeklySummary(accountantId)
+        break
+      
+      case 'cleanup_old_notifications':
+        results = await cleanupOldNotifications()
+        break
+      
+      default:
+        return NextResponse.json(
+          { error: 'Unknown action' },
+          { status: 400 }
+        )
+    }
+
+    return NextResponse.json({
+      success: true,
+      action,
+      results
+    })
+
+  } catch (error) {
+    logger.error('Notification scheduler error', error as Error)
+    return NextResponse.json(
+      { error: 'Internal server error in notification scheduler' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * Process missing receipt reminders
+ */
+async function processMissingReceiptReminders(accountantId?: string): Promise<{
+  processed: number
+  sent: number
+  failed: number
+  details: Array<{ clientId: string; status: 'sent' | 'failed'; error?: string }>
+}> {
+  try {
+    logger.info('Processing missing receipt reminders', { accountantId })
+
+    // Get clients with missing receipts
+    let query = supabase
+      .from('clients')
+      .select(`
+        id,
+        name,
+        email,
+        accountant:accountants!inner(
+          id,
+          name,
+          email
+        )
+      `)
+
+    if (accountantId) {
+      query = query.eq('accountant_id', accountantId)
+    }
+
+    const { data: clients, error: clientsError } = await query
+
+    if (clientsError) {
+      throw new DatabaseError('Failed to fetch clients', { dbError: clientsError.message })
+    }
+
+    if (!clients || clients.length === 0) {
+      return { processed: 0, sent: 0, failed: 0, details: [] }
+    }
+
+    const results = {
+      processed: 0,
+      sent: 0,
+      failed: 0,
+      details: [] as Array<{ clientId: string; status: 'sent' | 'failed'; error?: string }>
+    }
+
+    for (const client of clients) {
+      try {
+        results.processed++
+
+        // Get missing receipts for this client
+        const missingReceipts = await getMissingReceiptsForClient(client.id, client.accountant.id)
+
+        if (missingReceipts.length === 0) {
+          continue // No missing receipts, skip
+        }
+
+        // Check if we've sent a reminder recently (within last 3 days)
+        const { data: recentReminder, error: reminderError } = await supabase
+          .from('email_logs')
+          .select('id')
+          .eq('recipient_email', client.email)
+          .eq('email_type', 'missing_receipt_reminder')
+          .gte('sent_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
+          .limit(1)
+
+        if (reminderError) {
+          logger.error('Error checking recent reminders', reminderError)
+        }
+
+        if (recentReminder && recentReminder.length > 0) {
+          continue // Already sent reminder recently, skip
+        }
+
+        // Calculate total amount
+        const totalAmount = missingReceipts.reduce((sum, receipt) => sum + receipt.amount, 0)
+
+        // Send reminder email
+        const emailResult = await sendMissingReceiptReminder({
+          clientName: client.name,
+          clientEmail: client.email,
+          accountantName: client.accountant.name,
+          missingReceipts,
+          totalAmount,
+          portalUrl: `${process.env.NEXT_PUBLIC_APP_URL}/client-portal`
+        })
+
+        if (emailResult.success) {
+          results.sent++
+          results.details.push({ clientId: client.id, status: 'sent' })
+
+          // Log the email
+          await supabase.from('email_logs').insert({
+            recipient_email: client.email,
+            recipient_name: client.name,
+            email_type: 'missing_receipt_reminder',
+            subject: `Missing Receipts Reminder - ${missingReceipts.length} receipts needed`,
+            sent_at: new Date().toISOString(),
+            message_id: emailResult.messageId,
+            status: 'sent',
+            metadata: {
+              missingReceiptsCount: missingReceipts.length,
+              totalAmount,
+              accountantId: client.accountant.id
+            }
+          })
+
+          // Create notification record
+          await supabase.from('notifications').insert({
+            user_id: client.id,
+            type: 'missing_receipt_reminder',
+            title: 'Missing Receipts Reminder Sent',
+            message: `Reminder sent for ${missingReceipts.length} missing receipts`,
+            read: false,
+            created_at: new Date().toISOString(),
+            metadata: {
+              missingReceiptsCount: missingReceipts.length,
+              totalAmount
+            }
+          })
+
+        } else {
+          results.failed++
+          results.details.push({ 
+            clientId: client.id, 
+            status: 'failed', 
+            error: emailResult.error 
+          })
+
+          // Log the failure
+          await supabase.from('email_logs').insert({
+            recipient_email: client.email,
+            recipient_name: client.name,
+            email_type: 'missing_receipt_reminder',
+            subject: `Missing Receipts Reminder - ${missingReceipts.length} receipts needed`,
+            sent_at: new Date().toISOString(),
+            status: 'failed',
+            error_message: emailResult.error,
+            metadata: {
+              missingReceiptsCount: missingReceipts.length,
+              totalAmount,
+              accountantId: client.accountant.id
+            }
+          })
+        }
+
+      } catch (error) {
+        results.failed++
+        results.details.push({ 
+          clientId: client.id, 
+          status: 'failed', 
+          error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        
+        logger.error('Error processing reminder for client', error as Error, {
+          clientId: client.id,
+          clientEmail: client.email
+        })
+      }
+    }
+
+    logger.info('Missing receipt reminders processing complete', results)
+    return results
+
+  } catch (error) {
+    logger.error('Error processing missing receipt reminders', error as Error)
+    throw error
+  }
+}
+
+/**
+ * Get missing receipts for a specific client
+ */
+async function getMissingReceiptsForClient(
+  clientId: string, 
+  accountantId: string
+): Promise<Array<{
+  id: string
+  description: string
+  amount: number
+  date: string
+  daysOverdue: number
+}>> {
+  // Get transactions without receipts for this client's accountant
+  const { data: transactions, error } = await supabase
+    .from('transactions')
+    .select('id, description, amount, transaction_date')
+    .eq('accountant_id', accountantId)
+    .is('receipt_id', null)
+    .gte('transaction_date', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) // Last 90 days
+    .lt('transaction_date', new Date().toISOString().split('T')[0]) // Before today
+    .order('transaction_date', { ascending: false })
+    .limit(50)
+
+  if (error) {
+    logger.error('Error fetching missing receipts', error)
+    return []
+  }
+
+  if (!transactions || transactions.length === 0) {
+    return []
+  }
+
+  return transactions.map(transaction => {
+    const daysOverdue = Math.floor(
+      (Date.now() - new Date(transaction.transaction_date).getTime()) / (1000 * 60 * 60 * 24)
+    )
+
+    return {
+      id: transaction.id,
+      description: transaction.description,
+      amount: Math.abs(transaction.amount),
+      date: transaction.transaction_date,
+      daysOverdue
+    }
+  })
+}
+
+/**
+ * Process report ready notifications
+ */
+async function processReportNotifications(accountantId?: string): Promise<{
+  processed: number
+  sent: number
+  failed: number
+}> {
+  try {
+    logger.info('Processing report notifications', { accountantId })
+
+    // Get reports that are ready but haven't been notified
+    let query = supabase
+      .from('reports')
+      .select(`
+        id,
+        title,
+        period_start,
+        period_end,
+        file_url,
+        client:clients!inner(
+          id,
+          name,
+          email,
+          accountant:accountants!inner(
+            id,
+            name
+          )
+        )
+      `)
+      .eq('status', 'completed')
+      .eq('notification_sent', false)
+      .not('file_url', 'is', null)
+
+    if (accountantId) {
+      query = query.eq('client.accountant_id', accountantId)
+    }
+
+    const { data: reports, error: reportsError } = await query
+
+    if (reportsError) {
+      throw new DatabaseError('Failed to fetch reports', { dbError: reportsError.message })
+    }
+
+    if (!reports || reports.length === 0) {
+      return { processed: 0, sent: 0, failed: 0 }
+    }
+
+    const results = { processed: 0, sent: 0, failed: 0 }
+
+    for (const report of reports) {
+      try {
+        results.processed++
+
+        const emailResult = await sendReportReadyNotification({
+          clientName: report.client.name,
+          clientEmail: report.client.email,
+          reportTitle: report.title,
+          reportPeriod: `${new Date(report.period_start).toLocaleDateString()} - ${new Date(report.period_end).toLocaleDateString()}`,
+          downloadUrl: report.file_url,
+          accountantName: report.client.accountant.name
+        })
+
+        if (emailResult.success) {
+          results.sent++
+
+          // Mark report as notified
+          await supabase
+            .from('reports')
+            .update({ 
+              notification_sent: true, 
+              notification_sent_at: new Date().toISOString() 
+            })
+            .eq('id', report.id)
+
+          // Log the email
+          await supabase.from('email_logs').insert({
+            recipient_email: report.client.email,
+            recipient_name: report.client.name,
+            email_type: 'report_ready',
+            subject: `Your ${report.title} is Ready`,
+            sent_at: new Date().toISOString(),
+            message_id: emailResult.messageId,
+            status: 'sent',
+            metadata: {
+              reportId: report.id,
+              reportTitle: report.title
+            }
+          })
+
+        } else {
+          results.failed++
+          logger.error('Failed to send report notification', new Error(emailResult.error), {
+            reportId: report.id,
+            clientEmail: report.client.email
+          })
+        }
+
+      } catch (error) {
+        results.failed++
+        logger.error('Error processing report notification', error as Error, {
+          reportId: report.id
+        })
+      }
+    }
+
+    logger.info('Report notifications processing complete', results)
+    return results
+
+  } catch (error) {
+    logger.error('Error processing report notifications', error as Error)
+    throw error
+  }
+}
+
+/**
+ * Process weekly summary emails
+ */
+async function processWeeklySummary(accountantId?: string): Promise<{
+  processed: number
+  sent: number
+  failed: number
+}> {
+  // TODO: Implement weekly summary email processing
+  logger.info('Weekly summary processing not yet implemented', { accountantId })
+  return { processed: 0, sent: 0, failed: 0 }
+}
+
+/**
+ * Clean up old notification records
+ */
+async function cleanupOldNotifications(): Promise<{
+  deletedNotifications: number
+  deletedEmailLogs: number
+}> {
+  try {
+    logger.info('Cleaning up old notifications')
+
+    const cutoffDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString() // 90 days ago
+
+    // Delete old read notifications
+    const { error: notificationError, count: deletedNotifications } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('read', true)
+      .lt('created_at', cutoffDate)
+
+    if (notificationError) {
+      logger.error('Error deleting old notifications', notificationError)
+    }
+
+    // Delete old email logs (keep for audit purposes, but clean up very old ones)
+    const oldCutoffDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago
+    
+    const { error: emailLogError, count: deletedEmailLogs } = await supabase
+      .from('email_logs')
+      .delete()
+      .lt('sent_at', oldCutoffDate)
+
+    if (emailLogError) {
+      logger.error('Error deleting old email logs', emailLogError)
+    }
+
+    const results = {
+      deletedNotifications: deletedNotifications || 0,
+      deletedEmailLogs: deletedEmailLogs || 0
+    }
+
+    logger.info('Cleanup complete', results)
+    return results
+
+  } catch (error) {
+    logger.error('Error during cleanup', error as Error)
+    throw error
+  }
+}
+
+// GET endpoint for notification statistics
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const accountantId = searchParams.get('accountantId')
+    const days = parseInt(searchParams.get('days') || '7')
+
+    const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+    // Get email statistics
+    let emailQuery = supabase
+      .from('email_logs')
+      .select('email_type, status, sent_at')
+      .gte('sent_at', cutoffDate)
+
+    if (accountantId) {
+      emailQuery = emailQuery.eq('metadata->>accountantId', accountantId)
+    }
+
+    const { data: emailLogs, error: emailError } = await emailQuery
+
+    if (emailError) {
+      throw new DatabaseError('Failed to fetch email statistics', { dbError: emailError.message })
+    }
+
+    // Calculate statistics
+    const stats = {
+      totalEmails: emailLogs?.length || 0,
+      sentEmails: emailLogs?.filter(log => log.status === 'sent').length || 0,
+      failedEmails: emailLogs?.filter(log => log.status === 'failed').length || 0,
+      emailTypes: {} as Record<string, number>,
+      dailyStats: {} as Record<string, { sent: number; failed: number }>
+    }
+
+    // Group by email type
+    emailLogs?.forEach(log => {
+      stats.emailTypes[log.email_type] = (stats.emailTypes[log.email_type] || 0) + 1
+      
+      const day = new Date(log.sent_at).toISOString().split('T')[0]
+      if (!stats.dailyStats[day]) {
+        stats.dailyStats[day] = { sent: 0, failed: 0 }
+      }
+      
+      if (log.status === 'sent') {
+        stats.dailyStats[day].sent++
+      } else {
+        stats.dailyStats[day].failed++
+      }
+    })
+
+    stats.successRate = stats.totalEmails > 0 
+      ? Math.round((stats.sentEmails / stats.totalEmails) * 100) 
+      : 0
+
+    return NextResponse.json({
+      success: true,
+      period: `${days} days`,
+      statistics: stats
+    })
+
+  } catch (error) {
+    logger.error('Error fetching notification statistics', error as Error)
+    return NextResponse.json(
+      { error: 'Internal server error fetching statistics' },
+      { status: 500 }
+    )
+  }
+}

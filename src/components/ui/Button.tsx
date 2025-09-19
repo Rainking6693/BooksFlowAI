@@ -1,1 +1,302 @@
-'use client'\n\nimport { forwardRef, ButtonHTMLAttributes } from 'react'\nimport { cn } from '@/lib/utils'\n\nexport interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'warning'\n  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'\n  loading?: boolean\n  leftIcon?: React.ReactNode\n  rightIcon?: React.ReactNode\n  fullWidth?: boolean\n}\n\nconst Button = forwardRef<HTMLButtonElement, ButtonProps>(\n  ({\n    className,\n    variant = 'primary',\n    size = 'md',\n    loading = false,\n    leftIcon,\n    rightIcon,\n    fullWidth = false,\n    disabled,\n    children,\n    ...props\n  }, ref) => {\n    const baseClasses = [\n      'inline-flex items-center justify-center',\n      'font-medium rounded-lg',\n      'transition-all duration-200',\n      'focus:outline-none focus:ring-2 focus:ring-offset-2',\n      'disabled:opacity-50 disabled:cursor-not-allowed',\n      'active:scale-95'\n    ]\n\n    const variantClasses = {\n      primary: [\n        'bg-primary-600 text-white',\n        'hover:bg-primary-700',\n        'focus:ring-primary-500',\n        'shadow-sm hover:shadow-md'\n      ],\n      secondary: [\n        'bg-gray-100 text-gray-900',\n        'hover:bg-gray-200',\n        'focus:ring-gray-500',\n        'shadow-sm hover:shadow-md'\n      ],\n      outline: [\n        'bg-white text-gray-700 border border-gray-300',\n        'hover:bg-gray-50 hover:border-gray-400',\n        'focus:ring-primary-500',\n        'shadow-sm hover:shadow-md'\n      ],\n      ghost: [\n        'bg-transparent text-gray-700',\n        'hover:bg-gray-100',\n        'focus:ring-gray-500'\n      ],\n      danger: [\n        'bg-error-600 text-white',\n        'hover:bg-error-700',\n        'focus:ring-error-500',\n        'shadow-sm hover:shadow-md'\n      ],\n      success: [\n        'bg-success-600 text-white',\n        'hover:bg-success-700',\n        'focus:ring-success-500',\n        'shadow-sm hover:shadow-md'\n      ],\n      warning: [\n        'bg-warning-600 text-white',\n        'hover:bg-warning-700',\n        'focus:ring-warning-500',\n        'shadow-sm hover:shadow-md'\n      ]\n    }\n\n    const sizeClasses = {\n      xs: 'px-2 py-1 text-xs min-h-[24px]',\n      sm: 'px-3 py-1.5 text-sm min-h-[32px]',\n      md: 'px-4 py-2 text-sm min-h-[40px]',\n      lg: 'px-6 py-3 text-base min-h-[48px]',\n      xl: 'px-8 py-4 text-lg min-h-[56px]'\n    }\n\n    const widthClasses = fullWidth ? 'w-full' : ''\n\n    const isDisabled = disabled || loading\n\n    return (\n      <button\n        ref={ref}\n        className={cn(\n          baseClasses,\n          variantClasses[variant],\n          sizeClasses[size],\n          widthClasses,\n          className\n        )}\n        disabled={isDisabled}\n        {...props}\n      >\n        {loading && (\n          <div className=\"mr-2\">\n            <div className=\"animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent\" />\n          </div>\n        )}\n        {!loading && leftIcon && (\n          <span className=\"mr-2\">{leftIcon}</span>\n        )}\n        {children}\n        {!loading && rightIcon && (\n          <span className=\"ml-2\">{rightIcon}</span>\n        )}\n      </button>\n    )\n  }\n)\n\nButton.displayName = 'Button'\n\nexport { Button }\n\n// Button Group Component\ninterface ButtonGroupProps {\n  children: React.ReactNode\n  className?: string\n  orientation?: 'horizontal' | 'vertical'\n  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'\n}\n\nexport function ButtonGroup({ \n  children, \n  className, \n  orientation = 'horizontal',\n  size = 'md'\n}: ButtonGroupProps) {\n  const orientationClasses = {\n    horizontal: 'flex-row',\n    vertical: 'flex-col'\n  }\n\n  return (\n    <div className={cn(\n      'inline-flex',\n      orientationClasses[orientation],\n      '[&>button]:rounded-none',\n      '[&>button:first-child]:rounded-l-lg',\n      '[&>button:last-child]:rounded-r-lg',\n      orientation === 'vertical' && [\n        '[&>button:first-child]:rounded-t-lg [&>button:first-child]:rounded-b-none',\n        '[&>button:last-child]:rounded-b-lg [&>button:last-child]:rounded-t-none'\n      ],\n      '[&>button:not(:first-child)]:border-l-0',\n      orientation === 'vertical' && '[&>button:not(:first-child)]:border-t-0 [&>button:not(:first-child)]:border-l',\n      className\n    )}>\n      {children}\n    </div>\n  )\n}\n\n// Icon Button Component\ninterface IconButtonProps extends Omit<ButtonProps, 'leftIcon' | 'rightIcon'> {\n  icon: React.ReactNode\n  'aria-label': string\n}\n\nexport function IconButton({ icon, className, ...props }: IconButtonProps) {\n  return (\n    <Button\n      className={cn('p-2', className)}\n      {...props}\n    >\n      {icon}\n    </Button>\n  )\n}\n\n// Floating Action Button Component\ninterface FABProps extends ButtonProps {\n  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'\n}\n\nexport function FloatingActionButton({ \n  position = 'bottom-right', \n  className,\n  children,\n  ...props \n}: FABProps) {\n  const positionClasses = {\n    'bottom-right': 'fixed bottom-6 right-6',\n    'bottom-left': 'fixed bottom-6 left-6',\n    'top-right': 'fixed top-6 right-6',\n    'top-left': 'fixed top-6 left-6'\n  }\n\n  return (\n    <Button\n      className={cn(\n        positionClasses[position],\n        'rounded-full shadow-lg hover:shadow-xl',\n        'z-50 h-14 w-14',\n        className\n      )}\n      {...props}\n    >\n      {children}\n    </Button>\n  )\n}\n\n// Split Button Component\ninterface SplitButtonProps {\n  children: React.ReactNode\n  onMainClick: () => void\n  onMenuClick: () => void\n  variant?: ButtonProps['variant']\n  size?: ButtonProps['size']\n  disabled?: boolean\n  loading?: boolean\n  className?: string\n}\n\nexport function SplitButton({\n  children,\n  onMainClick,\n  onMenuClick,\n  variant = 'primary',\n  size = 'md',\n  disabled = false,\n  loading = false,\n  className\n}: SplitButtonProps) {\n  return (\n    <ButtonGroup className={className}>\n      <Button\n        variant={variant}\n        size={size}\n        disabled={disabled}\n        loading={loading}\n        onClick={onMainClick}\n      >\n        {children}\n      </Button>\n      <Button\n        variant={variant}\n        size={size}\n        disabled={disabled}\n        onClick={onMenuClick}\n        className=\"px-2\"\n      >\n        <svg className=\"w-4 h-4\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\">\n          <path strokeLinecap=\"round\" strokeLinejoin=\"round\" strokeWidth={2} d=\"M19 9l-7 7-7-7\" />\n        </svg>\n      </Button>\n    </ButtonGroup>\n  )\n}\n\n// Button with Tooltip\ninterface TooltipButtonProps extends ButtonProps {\n  tooltip: string\n  tooltipPosition?: 'top' | 'bottom' | 'left' | 'right'\n}\n\nexport function TooltipButton({ \n  tooltip, \n  tooltipPosition = 'top', \n  className,\n  children,\n  ...props \n}: TooltipButtonProps) {\n  const tooltipPositionClasses = {\n    top: 'bottom-full left-1/2 transform -translate-x-1/2 mb-2',\n    bottom: 'top-full left-1/2 transform -translate-x-1/2 mt-2',\n    left: 'right-full top-1/2 transform -translate-y-1/2 mr-2',\n    right: 'left-full top-1/2 transform -translate-y-1/2 ml-2'\n  }\n\n  return (\n    <div className=\"relative group\">\n      <Button className={className} {...props}>\n        {children}\n      </Button>\n      <div className={cn(\n        'invisible group-hover:visible absolute z-10',\n        tooltipPositionClasses[tooltipPosition]\n      )}>\n        <div className=\"bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap\">\n          {tooltip}\n          <div className=\"absolute top-full left-1/2 transform -translate-x-1/2\">\n            <div className=\"border-4 border-transparent border-t-gray-900\"></div>\n          </div>\n        </div>\n      </div>\n    </div>\n  )\n}\n"
+'use client'
+
+import { forwardRef, ButtonHTMLAttributes } from 'react'
+import { cn } from '@/lib/utils'
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success' | 'warning'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  loading?: boolean
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
+  fullWidth?: boolean
+}
+
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({
+    className,
+    variant = 'primary',
+    size = 'md',
+    loading = false,
+    leftIcon,
+    rightIcon,
+    fullWidth = false,
+    disabled,
+    children,
+    ...props
+  }, ref) => {
+    const baseClasses = [
+      'inline-flex items-center justify-center',
+      'font-medium rounded-lg',
+      'transition-all duration-200',
+      'focus:outline-none focus:ring-2 focus:ring-offset-2',
+      'disabled:opacity-50 disabled:cursor-not-allowed',
+      'active:scale-95'
+    ]
+
+    const variantClasses = {
+      primary: [
+        'bg-primary-600 text-white',
+        'hover:bg-primary-700',
+        'focus:ring-primary-500',
+        'shadow-sm hover:shadow-md'
+      ],
+      secondary: [
+        'bg-gray-100 text-gray-900',
+        'hover:bg-gray-200',
+        'focus:ring-gray-500',
+        'shadow-sm hover:shadow-md'
+      ],
+      outline: [
+        'bg-white text-gray-700 border border-gray-300',
+        'hover:bg-gray-50 hover:border-gray-400',
+        'focus:ring-primary-500',
+        'shadow-sm hover:shadow-md'
+      ],
+      ghost: [
+        'bg-transparent text-gray-700',
+        'hover:bg-gray-100',
+        'focus:ring-gray-500'
+      ],
+      danger: [
+        'bg-error-600 text-white',
+        'hover:bg-error-700',
+        'focus:ring-error-500',
+        'shadow-sm hover:shadow-md'
+      ],
+      success: [
+        'bg-success-600 text-white',
+        'hover:bg-success-700',
+        'focus:ring-success-500',
+        'shadow-sm hover:shadow-md'
+      ],
+      warning: [
+        'bg-warning-600 text-white',
+        'hover:bg-warning-700',
+        'focus:ring-warning-500',
+        'shadow-sm hover:shadow-md'
+      ]
+    }
+
+    const sizeClasses = {
+      xs: 'px-2 py-1 text-xs min-h-[24px]',
+      sm: 'px-3 py-1.5 text-sm min-h-[32px]',
+      md: 'px-4 py-2 text-sm min-h-[40px]',
+      lg: 'px-6 py-3 text-base min-h-[48px]',
+      xl: 'px-8 py-4 text-lg min-h-[56px]'
+    }
+
+    const widthClasses = fullWidth ? 'w-full' : ''
+
+    const isDisabled = disabled || loading
+
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          baseClasses,
+          variantClasses[variant],
+          sizeClasses[size],
+          widthClasses,
+          className
+        )}
+        disabled={isDisabled}
+        {...props}
+      >
+        {loading && (
+          <div className="mr-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+          </div>
+        )}
+        {!loading && leftIcon && (
+          <span className="mr-2">{leftIcon}</span>
+        )}
+        {children}
+        {!loading && rightIcon && (
+          <span className="ml-2">{rightIcon}</span>
+        )}
+      </button>
+    )
+  }
+)
+
+Button.displayName = 'Button'
+
+export { Button }
+
+// Button Group Component
+interface ButtonGroupProps {
+  children: React.ReactNode
+  className?: string
+  orientation?: 'horizontal' | 'vertical'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+}
+
+export function ButtonGroup({ 
+  children, 
+  className, 
+  orientation = 'horizontal',
+  size = 'md'
+}: ButtonGroupProps) {
+  const orientationClasses = {
+    horizontal: 'flex-row',
+    vertical: 'flex-col'
+  }
+
+  return (
+    <div className={cn(
+      'inline-flex',
+      orientationClasses[orientation],
+      '[&>button]:rounded-none',
+      '[&>button:first-child]:rounded-l-lg',
+      '[&>button:last-child]:rounded-r-lg',
+      orientation === 'vertical' && [
+        '[&>button:first-child]:rounded-t-lg [&>button:first-child]:rounded-b-none',
+        '[&>button:last-child]:rounded-b-lg [&>button:last-child]:rounded-t-none'
+      ],
+      '[&>button:not(:first-child)]:border-l-0',
+      orientation === 'vertical' && '[&>button:not(:first-child)]:border-t-0 [&>button:not(:first-child)]:border-l',
+      className
+    )}>
+      {children}
+    </div>
+  )
+}
+
+// Icon Button Component
+interface IconButtonProps extends Omit<ButtonProps, 'leftIcon' | 'rightIcon'> {
+  icon: React.ReactNode
+  'aria-label': string
+}
+
+export function IconButton({ icon, className, ...props }: IconButtonProps) {
+  return (
+    <Button
+      className={cn('p-2', className)}
+      {...props}
+    >
+      {icon}
+    </Button>
+  )
+}
+
+// Floating Action Button Component
+interface FABProps extends ButtonProps {
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+}
+
+export function FloatingActionButton({ 
+  position = 'bottom-right', 
+  className,
+  children,
+  ...props 
+}: FABProps) {
+  const positionClasses = {
+    'bottom-right': 'fixed bottom-6 right-6',
+    'bottom-left': 'fixed bottom-6 left-6',
+    'top-right': 'fixed top-6 right-6',
+    'top-left': 'fixed top-6 left-6'
+  }
+
+  return (
+    <Button
+      className={cn(
+        positionClasses[position],
+        'rounded-full shadow-lg hover:shadow-xl',
+        'z-50 h-14 w-14',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Button>
+  )
+}
+
+// Split Button Component
+interface SplitButtonProps {
+  children: React.ReactNode
+  onMainClick: () => void
+  onMenuClick: () => void
+  variant?: ButtonProps['variant']
+  size?: ButtonProps['size']
+  disabled?: boolean
+  loading?: boolean
+  className?: string
+}
+
+export function SplitButton({
+  children,
+  onMainClick,
+  onMenuClick,
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  loading = false,
+  className
+}: SplitButtonProps) {
+  return (
+    <ButtonGroup className={className}>
+      <Button
+        variant={variant}
+        size={size}
+        disabled={disabled}
+        loading={loading}
+        onClick={onMainClick}
+      >
+        {children}
+      </Button>
+      <Button
+        variant={variant}
+        size={size}
+        disabled={disabled}
+        onClick={onMenuClick}
+        className="px-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </Button>
+    </ButtonGroup>
+  )
+}
+
+// Button with Tooltip
+interface TooltipButtonProps extends ButtonProps {
+  tooltip: string
+  tooltipPosition?: 'top' | 'bottom' | 'left' | 'right'
+}
+
+export function TooltipButton({ 
+  tooltip, 
+  tooltipPosition = 'top', 
+  className,
+  children,
+  ...props 
+}: TooltipButtonProps) {
+  const tooltipPositionClasses = {
+    top: 'bottom-full left-1/2 transform -translate-x-1/2 mb-2',
+    bottom: 'top-full left-1/2 transform -translate-x-1/2 mt-2',
+    left: 'right-full top-1/2 transform -translate-y-1/2 mr-2',
+    right: 'left-full top-1/2 transform -translate-y-1/2 ml-2'
+  }
+
+  return (
+    <div className="relative group">
+      <Button className={className} {...props}>
+        {children}
+      </Button>
+      <div className={cn(
+        'invisible group-hover:visible absolute z-10',
+        tooltipPositionClasses[tooltipPosition]
+      )}>
+        <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+          {tooltip}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2">
+            <div className="border-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
