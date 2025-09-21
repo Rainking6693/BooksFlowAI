@@ -13,6 +13,27 @@ export async function POST(request: NextRequest) {
   let ensuredTransactionIds: string[] | undefined
 
   try {
+    // SECURITY: Validate authentication first
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.error('AI categorization: Missing or invalid authorization header')
+      return NextResponse.json(
+        { error: 'Unauthorized: Missing authentication token' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      logger.error('AI categorization: Invalid authentication token', authError)
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid authentication token' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     transactionIds = body.transactionIds
     accountantId = body.accountantId
@@ -29,6 +50,24 @@ export async function POST(request: NextRequest) {
         { error: error.message },
         { status: error.statusCode }
       )
+    }
+
+    // SECURITY: Verify user has access to this accountant's data
+    if (user.id !== accountantId) {
+      const { data: accountantAccess, error: accessError } = await supabase
+        .from('accountants')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('user_id', accountantId)
+        .single()
+
+      if (accessError || !accountantAccess) {
+        logger.error('AI categorization: User access denied', { userId: user.id, accountantId })
+        return NextResponse.json(
+          { error: 'Forbidden: Access denied to this accountant data' },
+          { status: 403 }
+        )
+      }
     }
 
     ensuredAccountantId = accountantId as string
@@ -196,6 +235,27 @@ export async function GET(request: NextRequest) {
   let accountantId: string | null = null
 
   try {
+    // SECURITY: Validate authentication first
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.error('AI categorization stats: Missing or invalid authorization header')
+      return NextResponse.json(
+        { error: 'Unauthorized: Missing authentication token' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      logger.error('AI categorization stats: Invalid authentication token', authError)
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid authentication token' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     accountantId = searchParams.get('accountantId')
 
@@ -204,6 +264,24 @@ export async function GET(request: NextRequest) {
         { error: 'Missing accountantId parameter' },
         { status: 400 }
       )
+    }
+
+    // SECURITY: Verify user has access to this accountant's data
+    if (user.id !== accountantId) {
+      const { data: accountantAccess, error: accessError } = await supabase
+        .from('accountants')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .eq('user_id', accountantId)
+        .single()
+
+      if (accessError || !accountantAccess) {
+        logger.error('AI categorization stats: User access denied', { userId: user.id, accountantId })
+        return NextResponse.json(
+          { error: 'Forbidden: Access denied to this accountant data' },
+          { status: 403 }
+        )
+      }
     }
 
     const ensuredAccountantId = accountantId as string

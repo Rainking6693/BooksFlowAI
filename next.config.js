@@ -8,7 +8,7 @@ const nextConfig = {
   swcMinify: true,
   
   
-  // Essential security headers (simplified)
+  // SECURITY: Enhanced security headers for production
   async headers() {
     return [
       {
@@ -25,6 +25,22 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload'
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vrkwvtwfngeushjzazak.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://vrkwvtwfngeushjzazak.supabase.co https://api.openai.com; frame-ancestors 'none';"
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()'
           }
         ]
       }

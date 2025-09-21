@@ -14,6 +14,27 @@ import { ValidationError, QuickBooksError } from '@/lib/errors'
  */
 export async function GET(request: NextRequest) {
   try {
+    // SECURITY: Validate authentication first
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.error('QuickBooks auth: Missing or invalid authorization header')
+      return NextResponse.json(
+        { error: 'Unauthorized: Missing authentication token' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      logger.error('QuickBooks auth: Invalid authentication token', authError)
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid authentication token' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const accountantId = searchParams.get('accountantId')
 
@@ -24,8 +45,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Generate state parameter for security
-    const state = `${accountantId}-${Date.now()}-${Math.random().toString(36).substring(2)}`
+    // SECURITY: Verify user has access to this accountant's data
+    if (user.id !== accountantId) {
+      logger.error('QuickBooks auth: User access denied', { userId: user.id, accountantId })
+      return NextResponse.json(
+        { error: 'Forbidden: Access denied to this accountant data' },
+        { status: 403 }
+      )
+    }
+
+    // SECURITY: Generate cryptographically secure state parameter
+    const crypto = require('crypto')
+    const randomBytes = crypto.randomBytes(32).toString('hex')
+    const state = `${accountantId}-${Date.now()}-${randomBytes}`
     
     // Store state in session or database for verification
     // For now, we'll include accountantId in the state
