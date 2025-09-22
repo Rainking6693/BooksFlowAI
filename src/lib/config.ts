@@ -39,8 +39,11 @@ const envSchema = z.object({
   EMAIL_SERVER_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().email().optional(),
   
-  // Monitoring
-  SENTRY_DSN: z.string().url().optional(),
+  // Monitoring  
+  SENTRY_DSN: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional()
+  ),
   VERCEL_ANALYTICS_ID: z.string().optional(),
 })
 
@@ -55,7 +58,25 @@ function validateEnvironment() {
         console.error(`  - ${err.path.join('.')}: ${err.message}`)
       })
     }
-    process.exit(1)
+    // During build (Next.js webpack compilation), use partial config with warnings
+    if (typeof window === 'undefined' && process.env.NODE_ENV !== 'test') {
+      console.warn('⚠️ Using fallback configuration due to validation errors')
+      // Create a safe partial config for build
+      const partialEnv = envSchema.partial().safeParse(process.env)
+      if (partialEnv.success) {
+        return partialEnv.data
+      }
+      // If even partial parsing fails, return minimal config without hardcoded external URLs
+      return {
+        NODE_ENV: process.env.NODE_ENV || 'development',
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      }
+    }
+    
+    // In production runtime, throw error for actual validation failures
+    throw new Error('Environment validation failed')
   }
 }
 

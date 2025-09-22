@@ -26,7 +26,10 @@ const envSchema = z.object({
   GOODREADS_API_KEY: z.string().optional(),
   
   // Monitoring
-  SENTRY_DSN: z.string().optional(),
+  SENTRY_DSN: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional()
+  ),
   VERCEL_ANALYTICS_ID: z.string().optional(),
 })
 

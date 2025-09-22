@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { logger } from '@/lib/logger'
@@ -13,6 +14,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
     pendingTransactions: 0,
     highConfidenceTransactions: 0,
@@ -21,6 +23,61 @@ export default function DashboardPage() {
   })
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [actionLoading, setActionLoading] = useState<{ [key: string]: boolean }>({})
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth')
+  }
+
+  const handleQuickAction = async (action: string) => {
+    setActionLoading(prev => ({ ...prev, [action]: true }))
+    
+    try {
+      switch (action) {
+        case 'sync-quickbooks':
+          const syncResponse = await fetch('/api/quickbooks/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountantId: user?.id })
+          })
+          const syncData = await syncResponse.json()
+          if (syncData.success) {
+            alert(`QuickBooks sync started! Job ID: ${syncData.jobId}`)
+          } else {
+            alert(`Error: ${syncData.error}`)
+          }
+          break
+          
+        case 'review-transactions':
+          router.push('/dashboard/transactions')
+          break
+          
+        case 'generate-report':
+          const reportResponse = await fetch('/api/reports/generate/demo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              accountantId: user?.id, 
+              clientId: 'demo-client-123',
+              reportType: 'monthly'
+            })
+          })
+          const reportData = await reportResponse.json()
+          if (reportData.success) {
+            alert(`Report generation started! Request ID: ${reportData.requestId}`)
+          } else {
+            alert(`Error: ${reportData.error}`)
+          }
+          break
+      }
+    } catch (error) {
+      alert('Error performing action. Please try again.')
+      logger.error('Quick action error', error as Error)
+    } finally {
+      setActionLoading(prev => ({ ...prev, [action]: false }))
+    }
+  }
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -94,13 +151,23 @@ export default function DashboardPage() {
 
   return (
     <div className="px-4 py-6 sm:px-0">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ''}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Here's what's happening with your accounting automation today.
-        </p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome back{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ''}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Here's what's happening with your accounting automation today.
+          </p>
+        </div>
+        
+        <Button
+          onClick={handleSignOut}
+          variant="ghost"
+          size="sm"
+        >
+          Sign Out
+        </Button>
       </div>
 
       {/* Stats Grid */}
@@ -191,19 +258,37 @@ export default function DashboardPage() {
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Button variant="primary" size="lg" className="w-full">
+            <Button 
+              onClick={() => handleQuickAction('sync-quickbooks')}
+              variant="primary" 
+              size="lg" 
+              className="w-full"
+              loading={actionLoading['sync-quickbooks']}
+            >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Sync QuickBooks
             </Button>
-            <Button variant="secondary" size="lg" className="w-full">
+            <Button 
+              onClick={() => handleQuickAction('review-transactions')}
+              variant="secondary" 
+              size="lg" 
+              className="w-full"
+              loading={actionLoading['review-transactions']}
+            >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
               Review Transactions
             </Button>
-            <Button variant="outline" size="lg" className="w-full">
+            <Button 
+              onClick={() => handleQuickAction('generate-report')}
+              variant="outline" 
+              size="lg" 
+              className="w-full"
+              loading={actionLoading['generate-report']}
+            >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>

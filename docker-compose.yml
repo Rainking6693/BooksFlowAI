@@ -62,21 +62,21 @@ services:
       timeout: 3s
       retries: 5
 
-  # FastAPI Backend (placeholder - will be implemented separately)
-  # backend:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "8000:8000"
-  #   environment:
-  #     - DATABASE_URL=postgresql://postgres:password@postgres:5432/booksflow_dev
-  #     - REDIS_URL=redis://redis:6379
-  #   depends_on:
-  #     - postgres
-  #     - redis
-  #   networks:
-  #     - booksflow-network
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/booksflow_dev
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - booksflow-network
 
 volumes:
   postgres_data:

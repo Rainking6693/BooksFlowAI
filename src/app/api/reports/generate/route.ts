@@ -3,6 +3,8 @@
  * COMPREHENSIVE BUSINESS REPORTS - PDF EXPORT - CLIENT SHARING
  */
 
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generateAIReport } from '@/lib/reports/ai-report-generator'

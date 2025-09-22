@@ -36,7 +36,40 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vrkwvtwfngeushjzazak.supabase.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://vrkwvtwfngeushjzazak.supabase.co https://api.openai.com; frame-ancestors 'none';"
+            value: (() => {
+              const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+              const scriptSrc = [
+                "'self'",
+                "'unsafe-eval'",
+                "'unsafe-inline'",
+              ].join(' ')
+
+              const connectSrcParts = [
+                "'self'",
+                supabaseUrl,
+                'https://api.openai.com',
+                'https://api.mindee.net',
+                'https://api.stripe.com',
+                'https://checkout.stripe.com'
+              ].filter(Boolean)
+
+              const imgSrc = ["'self'", 'data:', 'https:'].join(' ')
+              const fontSrc = ["'self'", 'data:'].join(' ')
+
+              const directives = [
+                `default-src 'self'`,
+                `script-src ${scriptSrc}`,
+                `style-src 'self' 'unsafe-inline'`,
+                `img-src ${imgSrc}`,
+                `font-src ${fontSrc}`,
+                `connect-src ${connectSrcParts.join(' ')}`,
+                `frame-ancestors 'none'`,
+                // Allow Stripe Checkout if used
+                `frame-src https://checkout.stripe.com`
+              ]
+
+              return directives.join('; ')
+            })()
           },
           {
             key: 'Permissions-Policy',

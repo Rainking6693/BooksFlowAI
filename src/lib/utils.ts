@@ -89,6 +89,21 @@ export function formatPercentage(
 }
 
 /**
+ * Format percentage values (alias for compatibility)
+ */
+export function formatPercent(
+  value: number,
+  decimals: number = 1,
+  locale: string = 'en-US'
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'percent',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(value / 100)
+}
+
+/**
  * Format large numbers with abbreviations (K, M, B)
  */
 export function formatCompactNumber(

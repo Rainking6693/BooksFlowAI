@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { ReceiptUpload } from '@/components/client-portal/SimpleReceiptUpload'
+import { supabase } from '@/lib/supabase'
 import { logger } from '@/lib/logger'
 
 interface ClientPortalData {
@@ -13,6 +14,7 @@ interface ClientPortalData {
     name: string
     email: string
     accountant: {
+      id?: string
       name: string
       email: string
       phone?: string
@@ -136,9 +138,10 @@ export default function ClientPortalPage() {
               </div>
               
               <Button
-                onClick={() => {
-                  // Handle logout
-                  router.push('/auth/login')
+                onClick={async () => {
+                  // Handle logout properly
+                  await supabase.auth.signOut()
+                  router.push('/auth')
                 }}
                 variant="ghost"
                 size="sm"
@@ -189,7 +192,7 @@ export default function ClientPortalPage() {
         {activeTab === 'receipts' && (
           <ReceiptsTab 
             clientId={portalData.client.id}
-            accountantId={portalData.client.accountant.email} // Using email as ID for demo
+            accountantId={portalData.client.accountant.id || portalData.client.accountant.email}
             onUploadComplete={handleReceiptUpload}
           />
         )}

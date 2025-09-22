@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin, isDemoMode } from '@/lib/supabase-server'
 import { logger } from '@/lib/logger'
 import { ValidationError, DatabaseError } from '@/lib/errors'
 
@@ -7,8 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('clientId')
+    const demo = searchParams.get('demo') === '1'
 
-    if (!clientId) {
+    if (!clientId && !demo) {
       const error = new ValidationError('Missing clientId parameter')
       logger.error('Client portal dashboard validation failed', error)
       return NextResponse.json(
@@ -17,8 +18,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Return demo data if in demo mode or if server not configured
+    if (demo || isDemoMode() || clientId === 'demo-client-id') {
+      return NextResponse.json(getDemoData())
+    }
+
     // Get client information with accountant details
-    const { data: client, error: clientError } = await supabase
+    const { data: client, error: clientError } = await supabaseAdmin
       .from('clients')
       .select(`
         id,
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent reports
-    const { data: reports, error: reportsError } = await supabase
+    const { data: reports, error: reportsError } = await supabaseAdmin
       .from('reports')
       .select('id, title, period_start, period_end, generated_at, status, file_url')
       .eq('client_id', clientId)
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get pending receipts (transactions without receipts)
-    const { data: pendingReceipts, error: pendingError } = await supabase
+    const { data: pendingReceipts, error: pendingError } = await supabaseAdmin
       .from('transactions')
       .select('id, description, amount, transaction_date')
       .eq('accountant_id', client.accountant.id)
@@ -73,7 +79,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent activity
-    const { data: activity, error: activityError } = await supabase
+    const { data: activity, error: activityError } = await supabaseAdmin
       .from('activity_logs')
       .select('id, action, resource_type, created_at, new_values')
       .eq('user_id', clientId)
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get receipt statistics
-    const { data: receiptStats, error: statsError } = await supabase
+    const { data: receiptStats, error: statsError } = await supabaseAdmin
       .from('receipts')
       .select('id, uploaded_at, processed_at')
       .eq('client_id', clientId)
@@ -217,7 +223,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify client exists
-    const { data: client, error: clientError } = await supabase
+    const { data: client, error: clientError } = await supabaseAdmin
       .from('clients')
       .select('id, accountant_id')
       .eq('id', clientId)
@@ -268,7 +274,7 @@ async function handleSendMessage(clientId: string, accountantId: string, data: a
   }
 
   // Create message record
-  const { data: messageRecord, error: messageError } = await supabase
+  const { data: messageRecord, error: messageError } = await supabaseAdmin
     .from('messages')
     .insert({
       from_client_id: clientId,
@@ -289,7 +295,7 @@ async function handleSendMessage(clientId: string, accountantId: string, data: a
   }
 
   // Log activity
-  await supabase.from('activity_logs').insert({
+  await supabaseAdmin.from('activity_logs').insert({
     user_id: clientId,
     action: 'MESSAGE_SENT',
     resource_type: 'message',
@@ -321,7 +327,7 @@ async function handleRequestReport(clientId: string, accountantId: string, data:
   const { reportType, period } = data
 
   // Create report request
-  const { data: requestRecord, error: requestError } = await supabase
+  const { data: requestRecord, error: requestError } = await supabaseAdmin
     .from('report_requests')
     .insert({
       client_id: clientId,
@@ -343,7 +349,7 @@ async function handleRequestReport(clientId: string, accountantId: string, data:
   }
 
   // Log activity
-  await supabase.from('activity_logs').insert({
+  await supabaseAdmin.from('activity_logs').insert({
     user_id: clientId,
     action: 'REPORT_REQUESTED',
     resource_type: 'report_request',
@@ -380,7 +386,7 @@ async function handleMarkNotificationRead(clientId: string, data: any) {
     )
   }
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from('notifications')
     .update({ read: true, read_at: new Date().toISOString() })
     .eq('id', notificationId)
@@ -398,4 +404,94 @@ async function handleMarkNotificationRead(clientId: string, data: any) {
     success: true,
     message: 'Notification marked as read'
   })
+}
+
+// Demo data for when Supabase is not configured or demo mode is requested
+function getDemoData() {
+  return {
+    client: {
+      id: 'demo-client-123',
+      name: 'Tech Solutions LLC',
+      email: 'owner@techsolutions.com',
+      accountant: {
+        id: 'accountant-123',
+        name: 'Sarah Johnson, CPA',
+        email: 'sarah@johnsoncpa.com',
+        phone: '(555) 123-4567'
+      }
+    },
+    recentReports: [
+      {
+        id: 'report-1',
+        title: 'Tech Solutions LLC - December 2024 Financial Report',
+        period: '12/1/2024 - 12/31/2024',
+        generatedAt: '2025-01-05T10:00:00Z',
+        status: 'final',
+        downloadUrl: '/api/reports/demo/report-1.pdf'
+      },
+      {
+        id: 'report-2',
+        title: 'Tech Solutions LLC - November 2024 Financial Report',
+        period: '11/1/2024 - 11/30/2024',
+        generatedAt: '2024-12-05T10:00:00Z',
+        status: 'sent',
+        downloadUrl: '/api/reports/demo/report-2.pdf'
+      }
+    ],
+    pendingReceipts: [
+      {
+        id: 'pending-1',
+        description: 'Office supplies from Staples',
+        amount: 127.43,
+        date: '2024-12-15',
+        daysOverdue: 7
+      },
+      {
+        id: 'pending-2',
+        description: 'Business lunch meeting',
+        amount: 85.20,
+        date: '2024-12-10',
+        daysOverdue: 12
+      },
+      {
+        id: 'pending-3',
+        description: 'Software subscription renewal',
+        amount: 299.00,
+        date: '2024-12-08',
+        daysOverdue: 14
+      }
+    ],
+    recentActivity: [
+      {
+        id: 'activity-1',
+        type: 'receipt_uploaded',
+        description: 'Uploaded receipt: Amazon Business Purchase',
+        timestamp: '2024-12-20T14:30:00Z'
+      },
+      {
+        id: 'activity-2',
+        type: 'report_generated',
+        description: 'Monthly report generated',
+        timestamp: '2024-12-19T09:15:00Z'
+      },
+      {
+        id: 'activity-3',
+        type: 'message_received',
+        description: 'Message sent to accountant',
+        timestamp: '2024-12-18T16:45:00Z'
+      },
+      {
+        id: 'activity-4',
+        type: 'reminder_sent',
+        description: 'Receipt reminder sent',
+        timestamp: '2024-12-17T10:00:00Z'
+      }
+    ],
+    stats: {
+      receiptsThisMonth: 12,
+      receiptsProcessed: 28,
+      pendingReceipts: 3,
+      lastReportDate: '2025-01-05T10:00:00Z'
+    }
+  }
 }

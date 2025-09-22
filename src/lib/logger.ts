@@ -22,10 +22,26 @@ interface LogEntry {
 class Logger {
   private environment: string
   private isDevelopment: boolean
+  private sentryEnabled: boolean
 
   constructor() {
     this.environment = process.env.NODE_ENV || 'development'
     this.isDevelopment = this.environment === 'development'
+    this.sentryEnabled = !!process.env.SENTRY_DSN
+
+    // Lazy init placeholder for Sentry to avoid build-time crashes
+    if (this.sentryEnabled && typeof window === 'undefined') {
+      try {
+        // Defer require to runtime only; no-op if package not installed
+        const sentry = require('@sentry/node')
+        if (sentry && !sentry.isInitialized?.()) {
+          sentry.init({ dsn: process.env.SENTRY_DSN })
+        }
+      } catch (_) {
+        // Sentry not installed; ignore
+        this.sentryEnabled = false
+      }
+    }
   }
 
   private formatLog(level: LogEntry['level'], message: string, context?: LogContext): LogEntry {
@@ -73,6 +89,20 @@ class Logger {
       } : undefined
     }
     this.writeLog(this.formatLog('error', message, errorContext))
+
+    // Report to Sentry if enabled and available
+    if (this.sentryEnabled && typeof window === 'undefined') {
+      try {
+        const sentry = require('@sentry/node')
+        if (sentry?.captureException && error) {
+          sentry.captureException(error, { extra: errorContext })
+        } else if (sentry?.captureMessage) {
+          sentry.captureMessage(message, { level: 'error', extra: errorContext })
+        }
+      } catch (_) {
+        // Ignore Sentry errors
+      }
+    }
   }
 
   // Specialized logging methods for common use cases

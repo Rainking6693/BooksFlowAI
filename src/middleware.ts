@@ -180,6 +180,11 @@ function performSecurityChecks(request: NextRequest, ip: string, pathname: strin
 function performRateLimit(request: NextRequest, ip: string, pathname: string): NextResponse | null {
   const now = Date.now()
   
+  // Clean up expired entries opportunistically
+  if (Math.random() < 0.1) { // 10% chance to cleanup on each request
+    cleanupExpiredEntries()
+  }
+  
   // Determine rate limit based on endpoint
   let rateLimit = SECURITY_CONFIG.RATE_LIMITS.API
   
@@ -349,16 +354,16 @@ function getClientIP(request: NextRequest): string {
 }
 
 /**
- * Clean up rate limit store periodically
+ * Clean up expired entries from rate limit store
  */
-setInterval(() => {
+function cleanupExpiredEntries(): void {
   const now = Date.now()
   for (const [key, value] of rateLimitStore.entries()) {
     if (now > value.resetTime) {
       rateLimitStore.delete(key)
     }
   }
-}, 60000) // Clean up every minute
+}
 
 // Configure which paths the middleware should run on
 export const config = {

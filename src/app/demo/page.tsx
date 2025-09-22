@@ -16,16 +16,23 @@ export default function DemoPage() {
 
         {/* Video Demo Section */}
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-4xl mx-auto mb-12">
-          <div className="aspect-video bg-gray-900 rounded-lg mb-6 flex items-center justify-center">
+          <div className="aspect-video bg-gradient-to-br from-primary-600 to-primary-800 rounded-lg mb-6 flex items-center justify-center relative overflow-hidden">
             <div className="text-center">
-              <div className="w-20 h-20 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
                 <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               </div>
-              <p className="text-white text-lg font-medium">3-Minute Demo Video</p>
-              <p className="text-gray-300 text-sm">Coming Soon</p>
+              <p className="text-white text-lg font-medium mb-2">Watch BooksFlowAI in Action</p>
+              <p className="text-primary-100 text-sm mb-4">See how AI transforms accounting workflows</p>
+              <button className="bg-white text-primary-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+                ▶ Play Demo Video (3:24)
+              </button>
             </div>
+            
+            {/* Decorative elements */}
+            <div className="absolute top-4 left-4 w-12 h-12 border-2 border-white border-opacity-20 rounded-full"></div>
+            <div className="absolute bottom-4 right-4 w-8 h-8 border-2 border-white border-opacity-20 rounded-full"></div>
           </div>
           
           <div className="text-center">

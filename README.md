@@ -123,6 +123,7 @@ Required environment variables (see `.env.example`):
 ```bash
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:8000
 NODE_ENV=development
 
 # Supabase
@@ -140,12 +141,31 @@ QUICKBOOKS_ENVIRONMENT=sandbox
 OPENAI_API_KEY=your-openai-api-key
 MINDEE_API_KEY=your-mindee-api-key
 
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Monitoring (Optional)
+SENTRY_DSN=
+
 # Email (Optional)
 EMAIL_SERVER_HOST=smtp.gmail.com
 EMAIL_SERVER_PORT=587
 EMAIL_SERVER_USER=your-email@gmail.com
 EMAIL_SERVER_PASSWORD=your-app-password
 ```
+
+## Backend (FastAPI)
+
+This repo includes a minimal FastAPI service in `backend/` to align with the architecture plan. It currently exposes `/health` and is wired in `docker-compose.yml`.
+
+Run locally:
+
+```bash
+docker compose up --build
+```
+
+The frontend will call the backend at `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`).
 
 ## 🔌 Integrations
 

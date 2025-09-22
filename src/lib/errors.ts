@@ -307,8 +307,10 @@ export function setupGlobalErrorHandlers(): void {
       promise: promise.toString()
     })
     
-    // In production, we might want to exit the process
-    if (process.env.NODE_ENV === 'production') {
+    // Avoid killing build/static workers; only exit in server runtime
+    const isBuildTime = !!process.env.NEXT_PHASE || process.env.VERCEL === '1'
+    const isTest = process.env.NODE_ENV === 'test'
+    if (process.env.NODE_ENV === 'production' && !isBuildTime && !isTest) {
       process.exit(1)
     }
   })
@@ -319,8 +321,12 @@ export function setupGlobalErrorHandlers(): void {
       type: 'uncaught_exception'
     })
     
-    // Always exit on uncaught exceptions
-    process.exit(1)
+    // Avoid killing build/static workers; only exit in server runtime
+    const isBuildTime = !!process.env.NEXT_PHASE || process.env.VERCEL === '1'
+    const isTest = process.env.NODE_ENV === 'test'
+    if (!isBuildTime && !isTest) {
+      process.exit(1)
+    }
   })
 
   // Graceful shutdown

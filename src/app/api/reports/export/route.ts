@@ -3,6 +3,8 @@
  * PROFESSIONAL PDF GENERATION - FILE STORAGE - SECURE ACCESS
  */
 
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { generatePDFReport } from '@/lib/reports/pdf-generator'
