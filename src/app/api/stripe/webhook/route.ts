@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
+// ✅ New App Router configuration
+export const runtime = 'nodejs'
+export const preferredRegion = 'auto'
 
 export async function POST(request: NextRequest) {
   try {
