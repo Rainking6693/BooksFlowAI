@@ -1,10 +1,10 @@
 # Repository Guidelines
 
-# Solo Accountant AI SaaS - Repository Structure
+# BooksFlowAI - Repository Structure
 
 ## Project Structure & Module Organization
 
-SoloAccountantAI follows a standard Next.js 14 structure with TypeScript. Source code is organized in `/pages` for Next.js pages and API routes, `/components` for React components grouped by feature (ai-cleanup, receipts, reports, client-portal, etc.), `/lib` for utilities, database connections, AI services, and type definitions, and `/public` for static assets. The `/integrations` directory contains QuickBooks API and OCR service integrations.
+BooksFLowAI follows a standard Next.js 14 structure with TypeScript. Source code is organized in `/pages` for Next.js pages and API routes, `/components` for React components grouped by feature (ai-cleanup, receipts, reports, client-portal, etc.), `/lib` for utilities, database connections, AI services, and type definitions, and `/public` for static assets. The `/integrations` directory contains QuickBooks API and OCR service integrations.
 
 ## Build, Test, and Development Commands
 
@@ -60,7 +60,7 @@ npm run test:db
 
 ## 🎯 What This Repository Does
 
-SoloAccountantAI is an AI-powered accounting automation platform that streamlines bookkeeping workflows for solo accountants and small CPA firms. The platform provides intelligent transaction categorization, OCR receipt processing, automated client reporting, and seamless QuickBooks integration to help accountants save 10+ hours per week on manual data entry and cleanup.
+BooksFlowAI is an AI-powered accounting automation platform that streamlines bookkeeping workflows for solo accountants and small CPA firms. The platform provides intelligent transaction categorization, OCR receipt processing, automated client reporting, and seamless QuickBooks integration to help accountants save 10+ hours per week on manual data entry and cleanup.
 
 **Key responsibilities:**
 - AI-powered QuickBooks transaction categorization and cleanup
@@ -75,7 +75,7 @@ SoloAccountantAI is an AI-powered accounting automation platform that streamline
 
 ### System Context
 ```
-[QuickBooks Data] → [SoloAccountantAI Platform] → [Clean Categorized Data]
+[QuickBooks Data] → [BooksFlowAI Platform] → [Clean Categorized Data]
        ↓                        ↓                        ↓
 [Client Receipts] → [AI Processing Engine] → [Automated Reports]
        ↓                        ↓                        ↓
@@ -104,7 +104,7 @@ SoloAccountantAI is an AI-powered accounting automation platform that streamline
 ## 📁 Project Structure [Complete Directory Tree]
 
 ```
-SoloAccountantAI/
+BooksFlowAI/
 ├── pages/                          # Next.js pages and API routes
 │   ├── api/                        # Backend API endpoints
 │   │   ├── ai/                     # AI processing endpoints
